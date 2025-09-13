@@ -1,0 +1,8 @@
+pandas
+openpyxl
+chromadb
+sentence-transformers
+tiktoken
+pydantic
+python-dotenv
+openai>=1.30.0

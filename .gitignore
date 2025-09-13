@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Локальные данные и индексы
+data/
+chroma_db/
+
+# Секреты и локальные файлы
+.env
+*.local.json
+
+# Результаты прогонов
+batch_results.csv
+batch_results.jsonl
