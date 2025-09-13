@@ -25,11 +25,17 @@ echo "🔍 Запускаем анализ..."
 python run_analysis.py
 
 echo ""
+echo "📊 Генерируем отчеты..."
+python aggregate.py
+
+echo ""
 echo "✅ Анализ завершен!"
 echo "📁 Результаты сохранены в:"
-echo "   - batch_results.csv"
-echo "   - batch_results.jsonl"
+echo "   - batch_results.csv (таблица результатов)"
+echo "   - batch_results.jsonl (детальные данные)"
+echo "   - report.md (Markdown отчет)"
+echo "   - report.xlsx (Excel отчет)"
 echo ""
 echo "📊 Для просмотра результатов:"
-echo "   cat batch_results.csv"
-echo "   cat batch_results.jsonl"
+echo "   cat report.md"
+echo "   open report.xlsx"

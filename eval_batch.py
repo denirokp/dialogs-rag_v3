@@ -90,7 +90,9 @@ def main():
          open("batch_results.csv", "w", encoding="utf-8", newline="") as cf:
 
         csv_w = csv.DictWriter(cf, fieldnames=[
-            "dialog_id","delivery_discussed","delivery_types","barriers","ideas","signals","self_check"
+            "dialog_id","delivery_discussed","delivery_types","barriers","ideas","signals",
+            "region","segment","product_category","sentiment","client_type","payment_method","return_issue",
+            "self_check","citations"
         ])
         csv_w.writeheader()
 
@@ -111,6 +113,13 @@ def main():
                         "barriers": [],
                         "ideas": [],
                         "signals": [],
+                        "region": "",
+                        "segment": "",
+                        "product_category": "",
+                        "sentiment": "",
+                        "client_type": "",
+                        "payment_method": "",
+                        "return_issue": "",
                         "self_check": "Нет клиентских окон/реплик",
                         "citations": []
                     }
@@ -136,13 +145,21 @@ def main():
                 # Сохраняем результаты
                 jf.write(json.dumps(payload, ensure_ascii=False) + "\n")
                 csv_w.writerow({
-                    "dialog_id": did,
-                    "delivery_discussed": payload.get("delivery_discussed"),
+                    "dialog_id": payload.get("dialog_id", did),
+                    "delivery_discussed": payload.get("delivery_discussed", False),
                     "delivery_types": "|".join(payload.get("delivery_types", [])),
                     "barriers": "|".join(payload.get("barriers", [])),
                     "ideas": "|".join(payload.get("ideas", [])),
                     "signals": "|".join(payload.get("signals", [])),
-                    "self_check": payload.get("self_check","")
+                    "region": payload.get("region", ""),
+                    "segment": payload.get("segment", ""),
+                    "product_category": payload.get("product_category", ""),
+                    "sentiment": payload.get("sentiment", ""),
+                    "client_type": payload.get("client_type", ""),
+                    "payment_method": payload.get("payment_method", ""),
+                    "return_issue": payload.get("return_issue", ""),
+                    "self_check": payload.get("self_check", ""),
+                    "citations": json.dumps(payload.get("citations", []), ensure_ascii=False)
                 })
 
                 processed += 1

@@ -148,8 +148,8 @@ def call_llm(system_prompt: str, user_prompt: str):
 
 def has_client_citations(payload):
     """Проверяет наличие цитат клиента в результатах"""
-    text = json.dumps(payload, ensure_ascii=False)
-    return settings.client_label in text.lower()
+    citations = payload.get("citations", [])
+    return bool(citations) and all(isinstance(c.get("quote",""), str) and len(c["quote"])>0 for c in citations)
 
 def main():
     print("🚀 Запускаем полный анализ диалогов...")
@@ -256,10 +256,20 @@ def main():
                 if not blocks:
                     payload = {
                         "dialog_id": did,
+                        "delivery_discussed": False,
                         "delivery_types": [],
                         "barriers": [],
                         "ideas": [],
-                        "self_check": "Нет релевантных окон"
+                        "signals": [],
+                        "region": "",
+                        "segment": "",
+                        "product_category": "",
+                        "sentiment": "",
+                        "client_type": "",
+                        "payment_method": "",
+                        "return_issue": "",
+                        "self_check": "Нет релевантных окон",
+                        "citations": []
                     }
                 else:
                     # Формируем промпт
