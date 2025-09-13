@@ -82,7 +82,9 @@ def has_client_citations(payload):
 
 def main():
     ids = get_all_dialog_ids()
-    print(f"Диалогов для обработки: {len(ids)}")
+    print(f"📊 Диалогов для обработки: {len(ids)}")
+    print(f"⚙️ Настройки: top_k={settings.top_k}, модель={settings.openai_model}")
+    print("🚀 Начинаем обработку...")
 
     with open("batch_results.jsonl", "w", encoding="utf-8") as jf, \
          open("batch_results.csv", "w", encoding="utf-8", newline="") as cf:
@@ -92,10 +94,15 @@ def main():
         ])
         csv_w.writeheader()
 
+        processed = 0
+        errors = 0
+        
         for i, did in enumerate(ids, 1):
             try:
-                blocksN = retrieve_for_dialog(did, DEFAULT_QUERY, topN=30)
+                # Оптимизированный поиск - меньше результатов для ускорения
+                blocksN = retrieve_for_dialog(did, DEFAULT_QUERY, topN=15)  # уменьшено с 30
                 blocks = rerank_blocks(DEFAULT_QUERY, blocksN, settings.top_k)
+                
                 if not blocks:
                     payload = {
                         "dialog_id": did,
@@ -113,6 +120,7 @@ def main():
                     try:
                         data = json.loads(ans_raw)
                     except json.JSONDecodeError:
+                        # Повторная попытка с исправленным промптом
                         ans_raw = call_llm(
                             ANALYST_SYSTEM_PROMPT + "\nОтвечай строго валидным JSON без преамбулы.",
                             prompt
@@ -120,10 +128,12 @@ def main():
                         data = json.loads(ans_raw)
                     payload = {"dialog_id": did, **data}
 
+                    # Проверка качества цитат
                     if (payload.get("delivery_types") or payload.get("barriers") or payload.get("ideas")) and not has_client_citations(payload):
                         sc = payload.get("self_check","")
-                        payload["self_check"] = (sc + " | Нет цитат клиента для части выводов — проверьте окна/промпт/реранкер").strip()
+                        payload["self_check"] = (sc + " | Нет цитат клиента для части выводов").strip()
 
+                # Сохраняем результаты
                 jf.write(json.dumps(payload, ensure_ascii=False) + "\n")
                 csv_w.writerow({
                     "dialog_id": did,
@@ -135,14 +145,25 @@ def main():
                     "self_check": payload.get("self_check","")
                 })
 
-                if i % 50 == 0:
-                    print(f"Готово {i}/{len(ids)}")
-                time.sleep(0.05)
+                processed += 1
+                
+                # Прогресс каждые 25 диалогов (чаще для больших данных)
+                if i % 25 == 0:
+                    print(f"📈 Обработано: {i}/{len(ids)} ({i/len(ids)*100:.1f}%)")
+                    print(f"✅ Успешно: {processed}, ❌ Ошибок: {errors}")
+                
+                # Уменьшенная задержка для ускорения
+                time.sleep(0.02)  # уменьшено с 0.05
 
             except Exception as e:
-                print(f"[{did}] error: {e}")
+                errors += 1
+                print(f"❌ [{did}] Ошибка: {e}")
                 jf.write(json.dumps({"dialog_id": did, "error": str(e)}, ensure_ascii=False) + "\n")
                 continue
+        
+        print(f"🎉 Обработка завершена!")
+        print(f"📊 Статистика: {processed} успешно, {errors} ошибок из {len(ids)} диалогов")
+        print(f"📁 Результаты сохранены в batch_results.csv и batch_results.jsonl")
 
 if __name__ == "__main__":
     main()

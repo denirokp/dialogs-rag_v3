@@ -63,41 +63,77 @@ def build_windows(dialog_id: str, turns, prev:int, next_:int):
     return windows
 
 def main():
+    print("📊 Загружаем данные...")
     df = read_excel(settings.xlsx_path, settings.sheet_names).fillna("")
     assert settings.col_id in df.columns, f"Нет колонки: {settings.col_id}"
     assert settings.col_text in df.columns, f"Нет колонки: {settings.col_text}"
+    
+    print(f"📈 Найдено диалогов: {len(df)}")
+    print("🔍 Обрабатываем диалоги...")
 
     records = []
+    processed = 0
     for _, row in df.iterrows():
         did = row[settings.col_id]
         turns = split_turns(row[settings.col_text])
         if not turns:
             continue
         records.extend(build_windows(str(did), turns, settings.prev_turns, settings.next_turns))
+        processed += 1
+        if processed % 100 == 0:
+            print(f"  Обработано диалогов: {processed}/{len(df)}")
 
     if not records:
-        print("Нечего индексировать.")
+        print("❌ Нечего индексировать.")
         return
 
+    print(f"📦 Создано окон: {len(records)}")
+    print("🤖 Загружаем модель эмбеддингов...")
     emb_model = SentenceTransformer(settings.embed_model_name)
-    vecs = emb_model.encode([r["context_full"] for r in records],
-                            normalize_embeddings=True, show_progress_bar=True).tolist()
+    
+    print("🔢 Создаем эмбеддинги...")
+    # Обрабатываем батчами для экономии памяти
+    batch_size = 100
+    all_embeddings = []
+    
+    for i in range(0, len(records), batch_size):
+        batch = records[i:i + batch_size]
+        batch_texts = [r["context_full"] for r in batch]
+        batch_embeddings = emb_model.encode(
+            batch_texts,
+            normalize_embeddings=True, 
+            show_progress_bar=True,
+            batch_size=32  # уменьшенный batch_size для стабильности
+        )
+        all_embeddings.extend(batch_embeddings.tolist())
+        print(f"  Обработано батчей: {i//batch_size + 1}/{(len(records)-1)//batch_size + 1}")
 
+    print("💾 Сохраняем в ChromaDB...")
     client = chromadb.PersistentClient(path=settings.chroma_path)
     col = client.get_or_create_collection(name=settings.collection)
 
-    col.add(
-        ids=[r["id"] for r in records],
-        documents=[r["context_full"] for r in records],
-        metadatas=[{
-            "dialog_id": r["dialog_id"],
-            "turn_L": r["turn_L"],
-            "turn_R": r["turn_R"],
-            "client_only": r["context_client_only"][:20000]
-        } for r in records],
-        embeddings=vecs
-    )
-    print(f"Готово. Проиндексировано окон: {len(records)}")
+    # Добавляем батчами для экономии памяти
+    add_batch_size = 500
+    for i in range(0, len(records), add_batch_size):
+        batch = records[i:i + add_batch_size]
+        batch_embeddings = all_embeddings[i:i + add_batch_size]
+        
+        col.add(
+            ids=[r["id"] for r in batch],
+            documents=[r["context_full"] for r in batch],
+            metadatas=[{
+                "dialog_id": r["dialog_id"],
+                "turn_L": r["turn_L"],
+                "turn_R": r["turn_R"],
+                "client_only": r["context_client_only"][:20000]
+            } for r in batch],
+            embeddings=batch_embeddings
+        )
+        print(f"  Сохранено батчей: {i//add_batch_size + 1}/{(len(records)-1)//add_batch_size + 1}")
+    
+    print(f"✅ Готово! Проиндексировано окон: {len(records)}")
+    print(f"📊 Диалогов обработано: {processed}")
+    print(f"🗄️ Размер базы: {len(records)} окон")
 
 if __name__ == "__main__":
     main()
