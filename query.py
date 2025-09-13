@@ -12,8 +12,8 @@ def retrieve_blocks(query_text: str, top_k: int):
     emb = SentenceTransformer(settings.embed_model_name)
     qvec = emb.encode([query_text], normalize_embeddings=True).tolist()[0]
 
-    ch = chromadb.PersistentClient(path=settings.chroma_path)
-    col = ch.get_or_create_collection(name=settings.collection)
+    ch = chromadb.Client()
+    col = ch.get_collection(name=settings.collection)
 
     res = col.query(query_embeddings=[qvec], n_results=top_k)
     blocks = []

@@ -8,8 +8,8 @@ from prompts import ANALYST_SYSTEM_PROMPT, DEFAULT_QUERY
 
 load_dotenv()
 emb = SentenceTransformer(settings.embed_model_name)
-ch = chromadb.PersistentClient(path=settings.chroma_path)
-col = ch.get_or_create_collection(name=settings.collection)
+ch = chromadb.Client()
+col = ch.get_collection(name=settings.collection)
 oai = OpenAI() if settings.use_openai else None
 
 def get_all_dialog_ids(limit=200000):

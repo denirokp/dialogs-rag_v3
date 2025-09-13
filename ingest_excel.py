@@ -109,8 +109,8 @@ def main():
         print(f"  Обработано батчей: {i//batch_size + 1}/{(len(records)-1)//batch_size + 1}")
 
     print("💾 Сохраняем в ChromaDB...")
-    client = chromadb.PersistentClient(path=settings.chroma_path)
-    col = client.get_or_create_collection(name=settings.collection)
+    client = chromadb.Client()
+    col = client.create_collection(name=settings.collection)
 
     # Добавляем батчами для экономии памяти
     add_batch_size = 500
