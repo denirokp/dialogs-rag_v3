@@ -97,14 +97,15 @@ class LLM:
         self.model = model
         self.key = os.getenv("OPENAI_API_KEY", "")
         self.client = httpx.Client(timeout=timeout)
+        # Read taxonomy once during initialization to avoid repeated I/O
+        with open(TAX_PATH, "r", encoding="utf-8") as f:
+            self.taxonomy = yaml.safe_load(f)
 
     def extract(self, dialog_id: str, window) -> List[Dict[str,Any]]:
         if not self.key:
             raise RuntimeError("ENV OPENAI_API_KEY не задан")
-        with open(TAX_PATH, "r", encoding="utf-8") as f:
-            taxonomy = yaml.safe_load(f)
         user = USER_TMPL.format(
-            taxonomy=json.dumps(taxonomy, ensure_ascii=False),
+            taxonomy=json.dumps(self.taxonomy, ensure_ascii=False),
             window=format_for_prompt(window),
         )
         payload = {
