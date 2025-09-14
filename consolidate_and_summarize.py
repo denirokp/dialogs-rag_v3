@@ -140,13 +140,22 @@ def summarize(merged: pd.DataFrame, agg: pd.DataFrame, sub: pd.DataFrame, model=
                 {"role": "user", "content": user},
             ],
         }
-        r = client.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-            json=payload,
-        )
-        r.raise_for_status()
-        js = json.loads(r.json()["choices"][0]["message"]["content"])
+        try:
+            r = client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json=payload,
+            )
+            r.raise_for_status()
+        except httpx.RequestError as e:
+            print(f"[warn] OpenAI request failed for {pid}: {e}")
+            continue
+        try:
+            content = r.json()["choices"][0]["message"]["content"]
+            js = json.loads(content)
+        except (KeyError, ValueError, json.JSONDecodeError) as e:
+            print(f"[warn] Failed to parse response for {pid}: {e}")
+            continue
         out.append(js)
 
     if out:
