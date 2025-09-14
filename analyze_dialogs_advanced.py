@@ -12,7 +12,7 @@ LLM-based анализатор (интегрирован под текущую �
 """
 
 import os, re, json, math, hashlib, argparse
-import httpx, pandas as pd, yaml
+import httpx, pandas as pd, yaml, tiktoken
 from pathlib import Path
 from typing import List, Dict, Any
 
@@ -22,6 +22,8 @@ ART_DIR.mkdir(parents=True, exist_ok=True)
 RES_PATH = ART_DIR / "comprehensive_results.json"
 STATS_PATH = ART_DIR / "statistics.json"
 TAX_PATH = "taxonomy.yaml"
+
+ENC = tiktoken.get_encoding("cl100k_base")
 
 # ----------------- чтение, парсинг, client-only -----------------
 def read_dialogs(path: str) -> pd.DataFrame:
@@ -57,21 +59,21 @@ def split_turns(full_text: str) -> List[Dict[str,Any]]:
     return turns
 
 def client_only_windows(turns: List[Dict[str,Any]], whole_max_tokens=8000, window_tokens=1800):
-    # оценка токенов ~ символы/4
-    client_turns = [t for t in turns if t["role"] == "client"]
-    total_chars = sum(len(t["text"]) for t in client_turns)
-    if math.ceil(total_chars/4) <= whole_max_tokens:
-        return [{"mode":"whole","window_id":0,"turns":client_turns}]
-    # окна
-    out, acc, acc_len, widx = [], [], 0, 0
-    max_chars = window_tokens*4
-    for t in client_turns:
-        L = len(t["text"])
-        if acc and acc_len + L > max_chars:
-            out.append({"mode":"window","window_id":widx,"turns":acc})
-            widx, acc, acc_len = widx+1, [], 0
-        acc.append(t); acc_len += L
-    if acc: out.append({"mode":"window","window_id":widx,"turns":acc})
+    client_turns = [
+        (t, len(ENC.encode(t["text"]))) for t in turns if t["role"] == "client"
+    ]
+    total_tokens = sum(tok for _, tok in client_turns)
+    if total_tokens <= whole_max_tokens:
+        return [{"mode": "whole", "window_id": 0, "turns": [t for t, _ in client_turns]}]
+    out, acc, acc_tokens, widx = [], [], 0, 0
+    for t, tok in client_turns:
+        if acc and acc_tokens + tok > window_tokens:
+            out.append({"mode": "window", "window_id": widx, "turns": acc})
+            widx, acc, acc_tokens = widx + 1, [], 0
+        acc.append(t)
+        acc_tokens += tok
+    if acc:
+        out.append({"mode": "window", "window_id": widx, "turns": acc})
     return out
 
 def format_for_prompt(window) -> str:
