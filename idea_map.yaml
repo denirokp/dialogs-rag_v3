@@ -1,50 +1,81 @@
 version: 1
 ideas:
-  - id: delivery_expand
-    title: Расширить доставку на больше товаров
+  - id: promotion_optimize
+    title: Оптимизировать продвижение и рекламу
     match:
-      - {theme: "доставка", subtheme: "расширить на больше товаров"}
-      - {theme: "доставка", subtheme: "добавить новые регионы"}
-      - {theme: "доставка", subtheme: "улучшить покрытие"}
+      - {theme: "продвижение", subtheme: "много просмотров, мало запросов"}
+      - {theme: "продвижение", subtheme: "высокая стоимость"}
+      - {theme: "продвижение", subtheme: "не окупается"}
 
   - id: ui_improve
     title: Улучшить интерфейс и настройки
     match:
-      - {theme: "UI/настройки", subtheme: "улучшить интерфейс"}
-      - {theme: "UI/настройки", subtheme: "сделать проще"}
-      - {theme: "UI/настройки", subtheme: "добавить функции"}
+      - {theme: "UI/настройки", subtheme: "непонятный интерфейс"}
+      - {theme: "UI/настройки", subtheme: "не удаётся настроить"}
 
   - id: support_enhance
     title: Улучшить поддержку клиентов
     match:
-      - {theme: "поддержка", subtheme: "улучшить поддержку"}
-      - {theme: "поддержка", subtheme: "быстрее отвечать"}
-      - {theme: "поддержка", subtheme: "добавить каналы связи"}
+      - {theme: "поддержка", subtheme: "долго ждать"}
+      - {theme: "поддержка", subtheme: "обращался — не помогло"}
 
-  - id: pricing_optimize
-    title: Оптимизировать цены и продвижение
+  - id: delivery_expand
+    title: Расширить доставку на больше товаров
     match:
-      - {theme: "цены", subtheme: "сделать дешевле"}
-      - {theme: "продвижение", subtheme: "улучшить таргетинг"}
-      - {theme: "продвижение", subtheme: "снизить стоимость"}
-
-  - id: logistics_speed
-    title: Ускорить доставку и логистику
-    match:
-      - {theme: "логистика/сроки", subtheme: "ускорить доставку"}
-      - {theme: "логистика/сроки", subtheme: "улучшить маршруты"}
-      - {theme: "логистика/сроки", subtheme: "добавить экспресс"}
+      - {theme: "доставка", subtheme: "не работает выборочно"}
 
   - id: assortment_expand
     title: Расширить ассортимент товаров
     match:
-      - {theme: "ассортимент", subtheme: "добавить товары"}
-      - {theme: "ассортимент", subtheme: "расширить категории"}
-      - {theme: "ассортимент", subtheme: "обновить каталог"}
+      - {theme: "ассортимент", subtheme: "несезонность"}
 
   - id: payment_improve
     title: Улучшить систему оплаты и возвратов
     match:
-      - {theme: "оплата/возвраты", subtheme: "упростить оплату"}
-      - {theme: "оплата/возвраты", subtheme: "улучшить возвраты"}
-      - {theme: "оплата/возвраты", subtheme: "добавить способы оплаты"}
+      - {theme: "оплата/возвраты", subtheme: "возврат 24 часа"}
+
+  - id: logistics_speed
+    title: Ускорить доставку и логистику
+    match:
+      - {theme: "логистика/сроки", subtheme: "долго в пути"}
+  
+  - id: delivery_partial
+    title: Доставка — работает выборочно/не на всех товарах
+    match:
+      - {theme: "доставка", subtheme: "не работает выборочно"}
+      - {theme: "UI/настройки", subtheme: "работает выборочно"}
+      - {theme: "доставка", subtheme: "не удаётся настроить"}
+
+  - id: promo_not_profitable
+    title: Продвижение — не окупается / высокая стоимость
+    match:
+      - {theme: "продвижение", subtheme: "не окупается"}
+      - {theme: "продвижение", subtheme: "высокая стоимость"}
+      - {theme: "цены", subtheme: "дорого для категории"}
+
+  - id: support_no_help
+    title: Поддержка — обращался, не помогло/долго
+    match:
+      - {theme: "поддержка", subtheme: "обращался — не помогло"}
+      - {theme: "поддержка", subtheme: "долго ждать"}
+
+  - id: ui_confusing
+    title: UI/настройки — непонятный интерфейс
+    match:
+      - {theme: "UI/настройки", subtheme: "непонятный интерфейс"}
+
+  - id: demand_low
+    title: Низкий спрос / мало обращений
+    match:
+      - {theme: "продвижение", subtheme: "много просмотров, мало запросов"}
+      - {theme: "ассортимент", subtheme: "несезонность"}
+
+  - id: logistics_slow
+    title: Логистика — долго в пути
+    match:
+      - {theme: "логистика/сроки", subtheme: "долго в пути"}
+
+  - id: returns_24h_confusion
+    title: Возвраты — непонимание механики 24 часа
+    match:
+      - {theme: "оплата/возвраты", subtheme: "возврат 24 часа"}
