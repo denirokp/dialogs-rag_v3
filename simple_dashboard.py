@@ -129,10 +129,19 @@ def render_raw(df_src: pd.DataFrame, label: str):
         top_t = d.groupby("theme")["dialog_id"].nunique().sort_values(ascending=False).head(15)
         st.plotly_chart(px.bar(top_t, title=f"Топ тем — {label}"), use_container_width=True)
     with c2:
-        top_st = d.groupby(["theme","subtheme"][1:])["text_quote"].count().sort_values(ascending=False).head(20)
+        top_st = (
+            d.groupby(["theme", "subtheme"])["text_quote"]
+            .count()
+            .sort_values(ascending=False)
+            .head(20)
+        )
         # небольшой хак для подписи
         top_st = top_st.rename("mentions").reset_index()
-        st.plotly_chart(px.bar(top_st, x="subtheme", y="mentions", title=f"Топ подтем — {label}"), use_container_width=True)
+        top_st["theme_sub"] = top_st["theme"] + " / " + top_st["subtheme"]
+        st.plotly_chart(
+            px.bar(top_st, x="theme_sub", y="mentions", title=f"Топ подтем — {label}"),
+            use_container_width=True,
+        )
     st.markdown("---")
     st.dataframe(d.sort_values(["theme","subtheme","confidence"], ascending=[True,True,False]), use_container_width=True, height=480)
 
