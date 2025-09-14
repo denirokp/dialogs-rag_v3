@@ -6,13 +6,13 @@ project:
   description: "Advanced RAG system for dialog analysis and entity extraction"
 
 openai:
-  model: "gpt-4"
+  model: "gpt-4o-mini"
   temperature: 0.1
   max_tokens: 4000
   timeout: 60
 
 processing:
-  batch_size: 10
+  batch_size: 20
   max_workers: 4
   chunk_size: 1000
   retry_attempts: 3
