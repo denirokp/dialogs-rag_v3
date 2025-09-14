@@ -251,7 +251,13 @@ class ComprehensiveDoDPipeline:
         
         # 11. Добавление в обучение
         for example in learning_examples:
-            self.learning_system.add_learning_example(example)
+            self.learning_system.add_learning_example(
+                dialog=example["dialog"],
+                extracted_entities=example["mentions"],
+                quality_score=example["quality_score"],
+                source=example["source"],
+                metadata={"timestamp": example["timestamp"]}
+            )
         
         # 12. Дедупликация всех упоминаний
         all_mentions = []
