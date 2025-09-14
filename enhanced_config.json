@@ -1,0 +1,70 @@
+{
+  "openai_api_key": "your-api-key-here",
+  "processing": {
+    "enable_autocorrection": true,
+    "enable_adaptive_prompts": true,
+    "enable_continuous_learning": true,
+    "enable_monitoring": true,
+    "enable_scaling": true,
+    "max_dialogs_per_batch": 1000,
+    "quality_threshold": 0.7,
+    "auto_save_results": true,
+    "output_directory": "enhanced_results"
+  },
+  "redis_host": "localhost",
+  "redis_port": 6379,
+  "redis_db": 0,
+  "monitoring": {
+    "snapshot_interval_minutes": 15,
+    "alert_cooldown_minutes": 30,
+    "max_history_days": 30,
+    "auto_cleanup": true
+  },
+  "scaling": {
+    "max_workers": 32,
+    "batch_size": 100,
+    "max_memory_usage": 0.8,
+    "max_queue_size": 10000,
+    "task_timeout": 300,
+    "retry_delay": 5,
+    "cache_ttl": 3600,
+    "enable_caching": true,
+    "enable_redis": false
+  },
+  "quality_correction": {
+    "garbage_patterns": [
+      "^(угу|ага|да|нет|хм|эм|мм)\\s*$",
+      "^(угу|ага|да|нет|хм|эм|мм)\\s+(угу|ага|да|нет|хм|эм|мм)\\s*$",
+      "^[а-яё]{1,3}\\s*$",
+      "^[^а-яё]*$",
+      "^\\s*$"
+    ],
+    "relevance_keywords": [
+      "доставка", "заказ", "курьер", "адрес", "время", "оплата",
+      "проблема", "жалоба", "предложение", "вопрос", "помощь",
+      "клиент", "менеджер", "звонок", "звонить", "связь"
+    ],
+    "min_quote_length": 10,
+    "max_quote_length": 200,
+    "quality_threshold": 0.5
+  },
+  "adaptive_prompts": {
+    "test_duration_days": 7,
+    "min_sample_size": 100,
+    "confidence_level": 0.95,
+    "auto_switch": true,
+    "traffic_split": {
+      "base": 0.3,
+      "detailed": 0.4,
+      "contextual": 0.3
+    }
+  },
+  "continuous_learning": {
+    "min_quality_score": 0.7,
+    "min_examples_for_update": 50,
+    "pattern_confidence_threshold": 0.8,
+    "performance_improvement_threshold": 0.05,
+    "learning_rate": 0.1,
+    "max_patterns": 1000
+  }
+}
