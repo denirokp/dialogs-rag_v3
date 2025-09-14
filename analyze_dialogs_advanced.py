@@ -13,8 +13,10 @@ LLM-based анализатор (интегрирован под текущую �
 
 import os, re, json, math, hashlib, argparse
 import httpx, pandas as pd, yaml
+from sentence_transformers import SentenceTransformer, util
 from pathlib import Path
 from typing import List, Dict, Any
+from collections import defaultdict
 
 INPUT_XLSX = "data/input/dialogs14_09.xlsx"
 ART_DIR = Path("artifacts")
@@ -158,20 +160,38 @@ class LLM:
 def norm_quote(s: str) -> str:
     return re.sub(r"\s+", " ", s.strip().lower())
 
-def dedup_mentions(rows: List[Dict[str,Any]]) -> List[Dict[str,Any]]:
-    seen = set(); out = []
+def dedup_mentions(
+    rows: List[Dict[str, Any]], similarity_threshold: float = 0.9
+) -> List[Dict[str, Any]]:
+    model = SentenceTransformer("all-MiniLM-L6-v2")
+    seen_hashes = set()
+    embeds_by_group: Dict[tuple, List[Any]] = defaultdict(list)
+    out: List[Dict[str, Any]] = []
     for r in rows:
-        key = (
+        quote_norm = norm_quote(r["text_quote"])
+        hash_key = (
             r["dialog_id"],
             r["turn_id"],
             r["label_type"],
             r["theme"],
             r.get("subtheme"),
-            hashlib.md5(norm_quote(r["text_quote"]).encode()).hexdigest(),
+            hashlib.md5(quote_norm.encode()).hexdigest(),
         )
-        if key in seen:
+        if hash_key in seen_hashes:
             continue
-        seen.add(key); out.append(r)
+        group_key = (r["label_type"], r["theme"], r.get("subtheme"))
+        emb = model.encode(quote_norm)
+        duplicate = False
+        for ex_emb in embeds_by_group[group_key]:
+            sim = float(util.cos_sim(emb, ex_emb))
+            if sim > similarity_threshold:
+                duplicate = True
+                break
+        if duplicate:
+            continue
+        seen_hashes.add(hash_key)
+        embeds_by_group[group_key].append(emb)
+        out.append(r)
     return out
 
 # ----------------- основной прогон -----------------
