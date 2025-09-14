@@ -75,25 +75,7 @@ example-data:
 	@echo "Creating example data..."
 	@mkdir -p data/input
 	@echo "Creating sample dialogs.xlsx..."
-	python -c "
-import pandas as pd
-import numpy as np
-
-# Create sample data
-data = {
-    'dialog_id': range(1, 101),
-    'text': [
-        f'Диалог {i}: Проблема с доставкой заказа {i}. Нужно улучшить логистику.' 
-        for i in range(1, 101)
-    ],
-    'timestamp': pd.date_range('2024-01-01', periods=100, freq='1H'),
-    'user_id': np.random.randint(1, 20, 100)
-}
-
-df = pd.DataFrame(data)
-df.to_excel('data/input/dialogs.xlsx', index=False)
-print('Example data created: data/input/dialogs.xlsx')
-"
+	python -c "import pandas as pd; import numpy as np; data = {'dialog_id': range(1, 101), 'text': [f'Диалог {i}: Проблема с доставкой заказа {i}. Нужно улучшить логистику.' for i in range(1, 101)], 'timestamp': pd.date_range('2024-01-01', periods=100, freq='1H'), 'user_id': np.random.randint(1, 20, 100)}; df = pd.DataFrame(data); df.to_excel('data/input/dialogs.xlsx', index=False); print('Example data created: data/input/dialogs.xlsx')"
 
 # Full pipeline test
 test-pipeline: example-data
