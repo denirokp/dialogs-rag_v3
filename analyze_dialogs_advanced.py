@@ -175,8 +175,8 @@ def dedup_mentions(rows: List[Dict[str,Any]]) -> List[Dict[str,Any]]:
     return out
 
 # ----------------- основной прогон -----------------
-def run(model="gpt-4o-mini", whole_max=8000, window_tokens=1800):
-    df = read_dialogs(INPUT_XLSX)
+def run(model="gpt-4o-mini", whole_max=8000, window_tokens=1800, input_xlsx=INPUT_XLSX):
+    df = read_dialogs(input_xlsx)
     llm = LLM(model=model)
     all_mentions: List[Dict[str,Any]] = []
     for _, row in df.iterrows():
@@ -221,5 +221,11 @@ if __name__ == "__main__":
     ap.add_argument("--model", default="gpt-4o-mini")
     ap.add_argument("--whole_max", type=int, default=8000)
     ap.add_argument("--window_tokens", type=int, default=1800)
+    ap.add_argument("--input_xlsx", default=INPUT_XLSX)
     args = ap.parse_args()
-    run(model=args.model, whole_max=args.whole_max, window_tokens=args.window_tokens)
+    run(
+        model=args.model,
+        whole_max=args.whole_max,
+        window_tokens=args.window_tokens,
+        input_xlsx=args.input_xlsx,
+    )
