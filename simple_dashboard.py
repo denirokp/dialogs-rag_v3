@@ -13,6 +13,27 @@ import streamlit as st
 
 st.set_page_config(page_title="DialogsRAG — панель разговоров", layout="wide")
 
+# --- Универсальный выбор колонки title/id без изменения DataFrame ---
+
+def _pick(cols, *names):
+    for n in names:
+        if n in cols:
+            return n
+    return None
+
+def pick_title_col(df):
+    # поддерживаем старый и новый варианты
+    col = _pick(df.columns, "problem_title", "idea_title", "signal_title", "title")
+    if not col:
+        raise KeyError("Не найдена колонка с названием сущности (title).")
+    return col
+
+def pick_id_col(df):
+    col = _pick(df.columns, "problem_id", "idea_id", "signal_id", "entity_id")
+    if not col:
+        raise KeyError("Не найдена колонка с id сущности.")
+    return col
+
 ART = Path("artifacts")
 RES_PATH = ART / "comprehensive_results.json"
 STATS_PATH = ART / "statistics.json"
@@ -402,15 +423,30 @@ def render_consolidation(prefix: str, title: str, icon: str):
         sum_df, sub_df, idx_df, cards_df = load_artifacts(prefix)
         st.subheader(f"Таблица по всем {title.lower()}")
         st.caption("Звонки — в скольких разговорах всплывала тема. Фразы — сколько цитат внутри них.")
-        st.dataframe(sum_df, use_container_width=True)
+        
+        # Универсальный выбор колонок
+        title_col = pick_title_col(sum_df)
+        id_col = pick_id_col(sum_df)
+        
+        show_cols = [id_col, title_col, "dialogs", "mentions", "share_dialogs_pct", "freq_per_1k", "intensity_mpd"]
+        view = sum_df[show_cols].rename(columns={
+            id_col: "id",
+            title_col: "название",
+            "dialogs": "звонки",
+            "mentions": "фразы",
+            "share_dialogs_pct": "доля звонков, %",
+            "freq_per_1k": "на 1000 звонков",
+            "intensity_mpd": "фраз на звонок",
+        })
+        st.dataframe(view, use_container_width=True)
         
         st.subheader("Какие 20% дают 80% охвата (Pareto)")
         st.caption("Столбики — звонки, линия — накопленная доля звонков, %.")
         d = sum_df.sort_values("dialogs", ascending=False).copy()
         d["cum_share"] = (d["dialogs"].cumsum() / max(1, d["dialogs"].sum()) * 100).round(1)
         fig = make_subplots(specs=[[{"secondary_y": True}]])
-        fig.add_trace(go.Bar(x=d["problem_title"], y=d["dialogs"], name="Звонки"), secondary_y=False)
-        fig.add_trace(go.Scatter(x=d["problem_title"], y=d["cum_share"], name="Накопл. доля, %", mode="lines+markers"), secondary_y=True)
+        fig.add_trace(go.Bar(x=d[title_col], y=d["dialogs"], name="Звонки"), secondary_y=False)
+        fig.add_trace(go.Scatter(x=d[title_col], y=d["cum_share"], name="Накопл. доля, %", mode="lines+markers"), secondary_y=True)
         fig.update_layout(title_text=f"Pareto: разговоры по {title.lower()}", xaxis_tickangle=30)
         fig.update_yaxes(title_text="Звонки", secondary_y=False)
         fig.update_yaxes(title_text="Доля, %", secondary_y=True, range=[0, 100])
@@ -419,13 +455,17 @@ def render_consolidation(prefix: str, title: str, icon: str):
         st.subheader("Как подтемы перетекают в тему (Sankey)")
         st.caption("Толстая линия = больше разговоров. Слева — подтемы, справа — укрупнённая тема.")
         if not idx_df.empty:
-            g = idx_df.groupby(["theme","subtheme","problem_id","problem_title"])['dialog_id'].nunique().reset_index(name="dialogs")
+            # Универсальный выбор колонок для idx_df
+            idx_title_col = pick_title_col(idx_df)
+            idx_id_col = pick_id_col(idx_df)
+            
+            g = idx_df.groupby(["theme","subtheme", idx_id_col, idx_title_col])['dialog_id'].nunique().reset_index(name="dialogs")
             subs = g.apply(lambda r: f"{r['theme']} / {r['subtheme']}", axis=1).unique().tolist()
-            probs = g["problem_title"].unique().tolist()
+            probs = g[idx_title_col].unique().tolist()
             nodes = subs + probs
             idx_map = {name: i for i, name in enumerate(nodes)}
             src = [idx_map[f"{r.theme} / {r.subtheme}"] for r in g.itertuples()]
-            dst = [idx_map[r.problem_title] for r in g.itertuples()]
+            dst = [idx_map[getattr(r, idx_title_col)] for r in g.itertuples()]
             val = [int(r.dialogs) for r in g.itertuples()]
             sankey = go.Sankey(node=dict(label=nodes), link=dict(source=src, target=dst, value=val))
             st.plotly_chart(go.Figure(sankey), use_container_width=True)
@@ -435,16 +475,16 @@ def render_consolidation(prefix: str, title: str, icon: str):
         st.subheader("Насколько хорошо покрыта карта соответствий (Heatmap)")
         st.caption("Где ячейка пустая — карту можно обогатить (подтема ещё не привязана к теме).")
         if not idx_df.empty:
-            cov = idx_df.groupby(["theme","problem_title"])['dialog_id'].nunique().reset_index(name="dialogs")
-            pivot = cov.pivot(index="theme", columns="problem_title", values="dialogs").fillna(0)
+            cov = idx_df.groupby(["theme", idx_title_col])['dialog_id'].nunique().reset_index(name="dialogs")
+            pivot = cov.pivot(index="theme", columns=idx_title_col, values="dialogs").fillna(0)
             fig = px.imshow(pivot, aspect="auto", color_continuous_scale="Blues", origin="lower")
             st.plotly_chart(fig, use_container_width=True)
         
-        if not sum_df.empty and (sum_df["problem_id"]=="other_unmapped").any():
-            unm = sum_df[sum_df["problem_id"]=="other_unmapped"].iloc[0]
+        if not sum_df.empty and (sum_df[id_col]=="other_unmapped").any():
+            unm = sum_df[sum_df[id_col]=="other_unmapped"].iloc[0]
             st.warning(f"Прочее/не сконсолидировано: {unm['share_dialogs_pct']}% звонков · {int(unm['mentions'])} фраз.")
             if not idx_df.empty:
-                cand = (idx_df[idx_df["problem_id"]=="other_unmapped"]
+                cand = (idx_df[idx_df[idx_id_col]=="other_unmapped"]
                         .groupby(["theme","subtheme"])['dialog_id'].nunique().reset_index(name="dialogs")
                         .sort_values("dialogs", ascending=False).head(15))
                 st.caption("Это подсказки, что добавить в карту соответствий.")
@@ -452,10 +492,10 @@ def render_consolidation(prefix: str, title: str, icon: str):
         
         st.subheader(f"Карточки {title.lower()} — человеческим языком")
         for _, row in sum_df.sort_values("dialogs", ascending=False).iterrows():
-            pid, title_text = row["problem_id"], row["problem_title"]
+            pid, title_text = row[id_col], row[title_col]
             with st.expander(f"{title_text} — {int(row['mentions'])} фраз · {int(row['dialogs'])} звонков ({row['share_dialogs_pct']}%)"):
-                if not cards_df.empty and pid in set(cards_df.get("problem_id", pd.Series()).values):
-                    js = cards_df[cards_df["problem_id"] == pid].iloc[0]
+                if not cards_df.empty and pid in set(cards_df.get(id_col, pd.Series()).values):
+                    js = cards_df[cards_df[id_col] == pid].iloc[0]
                     st.markdown(f"**О чём речь.** {js.get('definition','')}")
                     st.markdown(f"**Почему это важно.** {js.get('why_it_matters','')}")
                     motifs = js.get("common_motifs", [])
@@ -465,11 +505,11 @@ def render_consolidation(prefix: str, title: str, icon: str):
                     if motifs: st.markdown("**Частые мотивы:** " + ", ".join(motifs))
                 if not sub_df.empty:
                     st.markdown("**Подтемы (топ):**")
-                    st.dataframe(sub_df[sub_df["problem_id"] == pid].head(10), use_container_width=True)
+                    st.dataframe(sub_df[sub_df[id_col] == pid].head(10), use_container_width=True)
                 if not idx_df.empty:
                     st.markdown("**Примеры фраз:**")
                     cols = ["dialog_id","turn_id","theme","subtheme","text_quote","confidence"]
-                    st.dataframe(prettify_table(idx_df[idx_df["problem_id"] == pid][cols]).rename(columns={"ID звонка":"dialog_id"}),
+                    st.dataframe(prettify_table(idx_df[idx_df[idx_id_col] == pid][cols]).rename(columns={"ID звонка":"dialog_id"}),
                                  use_container_width=True)
         st.download_button(f"⬇️ Скачать CSV со сводкой {title.lower()}", data=to_csv_bytes(sum_df), file_name=f"{prefix}_summary.csv", mime="text/csv")
 
