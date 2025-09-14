@@ -6,4 +6,6 @@ streamlit
 plotly
 fastapi
 uvicorn
-tqdm
+streamlit-plotly-events
+xlsxwriter
+numpy
