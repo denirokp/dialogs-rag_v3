@@ -116,20 +116,25 @@ class LLM:
                 {"role": "user", "content": user},
             ],
         }
-        r = self.client.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {self.key}",
-                "Content-Type": "application/json",
-            },
-            json=payload,
-        )
-        r.raise_for_status()
-        content = r.json()["choices"][0]["message"]["content"]
         try:
+            r = self.client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+            r.raise_for_status()
+        except httpx.RequestError as e:
+            print(f"[warn] OpenAI request failed for dialog {dialog_id}: {e}")
+            return []
+        try:
+            content = r.json()["choices"][0]["message"]["content"]
             js = json.loads(content)
             arr = js.get("mentions", [])
-        except Exception:
+        except (KeyError, ValueError, json.JSONDecodeError) as e:
+            print(f"[warn] Failed to parse response for dialog {dialog_id}: {e}")
             arr = []
         out = []
         for m in arr:
