@@ -27,7 +27,10 @@ def load_mentions() -> pd.DataFrame:
     return df
 
 def build_map() -> pd.DataFrame:
-    mp = yaml.safe_load(open(MAP_PATH, "r", encoding="utf-8"))
+    if not Path(MAP_PATH).is_file():
+        raise FileNotFoundError(f"Файл {MAP_PATH} не найден")
+    with open(MAP_PATH, "r", encoding="utf-8") as f:
+        mp = yaml.safe_load(f)
     rows = []
     for p in mp["problems"]:
         for m in p["match"]:
