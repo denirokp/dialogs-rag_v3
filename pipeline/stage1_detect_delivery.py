@@ -123,7 +123,7 @@ def detect_delivery_openai(text: str) -> Dict[str, Any]:
         try:
             result = json.loads(cleaned_content)
             p_deliv = result.get("p_deliv", 0.0)
-            THRESH = STAGE_CONFIG["delivery_threshold"]
+            THRESH = settings.delivery_conf_threshold
             
             # Ужесточенный фильтр
             if p_deliv >= THRESH:

@@ -66,7 +66,8 @@ def canon_delivery(s: str) -> str:
 NORMALIZE_RULES = {
     # Барьеры
     "barriers": {
-        pattern: replacement for pattern, replacement in NORMALIZATION_MAP
+        pattern: replacement for category, patterns in NORMALIZATION_MAP["барьеры"].items() 
+        for pattern in patterns for replacement in [category]
     },
     
     # Идеи
@@ -114,9 +115,12 @@ def normalize_text(text: str, category: str) -> str:
 def normalize_phrase(text: str) -> str:
     """Нормализация фразы с использованием NORMALIZATION_MAP"""
     t = text.strip().lower()
-    for rx, repl in NORMALIZATION_MAP:
-        if re.search(rx, t, re.IGNORECASE):
-            t = repl
+    # Проверяем все категории в NORMALIZATION_MAP
+    for category, patterns in NORMALIZATION_MAP.items():
+        for pattern_list in patterns.values():
+            for pattern in pattern_list:
+                if re.search(pattern, t, re.IGNORECASE):
+                    t = pattern
             break
     return t
 
