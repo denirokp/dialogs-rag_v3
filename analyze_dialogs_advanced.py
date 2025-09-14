@@ -11,8 +11,9 @@ LLM-based анализатор (интегрирован под текущую �
 Требуется: OPENAI_API_KEY; pip install -r requirements.txt
 """
 
-import os, re, json, math, hashlib, argparse
+import os, re, json, math, hashlib, argparse, logging
 import httpx, pandas as pd, yaml
+from tqdm.auto import tqdm
 from pathlib import Path
 from typing import List, Dict, Any
 
@@ -96,14 +97,15 @@ class LLM:
         self.model = model
         self.key = os.getenv("OPENAI_API_KEY", "")
         self.client = httpx.Client(timeout=timeout)
+        # Read taxonomy once during initialization to avoid repeated I/O
+        with open(TAX_PATH, "r", encoding="utf-8") as f:
+            self.taxonomy = yaml.safe_load(f)
 
     def extract(self, dialog_id: str, window) -> List[Dict[str,Any]]:
         if not self.key:
             raise RuntimeError("ENV OPENAI_API_KEY не задан")
-        with open(TAX_PATH, "r", encoding="utf-8") as f:
-            taxonomy = yaml.safe_load(f)
         user = USER_TMPL.format(
-            taxonomy=json.dumps(taxonomy, ensure_ascii=False),
+            taxonomy=json.dumps(self.taxonomy, ensure_ascii=False),
             window=format_for_prompt(window),
         )
         payload = {
@@ -176,16 +178,31 @@ def dedup_mentions(rows: List[Dict[str,Any]]) -> List[Dict[str,Any]]:
 
 # ----------------- основной прогон -----------------
 def run(model="gpt-4o-mini", whole_max=8000, window_tokens=1800):
+    logging.basicConfig(level=logging.INFO)
     df = read_dialogs(INPUT_XLSX)
     llm = LLM(model=model)
     all_mentions: List[Dict[str,Any]] = []
-    for _, row in df.iterrows():
-        dlg_id = row["dialog_id"]; turns = split_turns(row["full_text"])
+    for _, row in tqdm(df.iterrows(), total=len(df), desc="dialogs"):
+        dlg_id = row["dialog_id"]
+        turns = split_turns(row["full_text"])
         windows = client_only_windows(
             turns, whole_max_tokens=whole_max, window_tokens=window_tokens
         )
-        for w in windows:
-            all_mentions.extend(llm.extract(dlg_id, w))
+        dlg_mentions = 0
+        dlg_errors = 0
+        for w in tqdm(windows, desc="windows", leave=False):
+            try:
+                mentions = llm.extract(dlg_id, w)
+                dlg_mentions += len(mentions)
+                all_mentions.extend(mentions)
+            except Exception as e:
+                dlg_errors += 1
+                logging.error(
+                    f"dialog {dlg_id} window {w.get('window_id')} error: {e}"
+                )
+        logging.info(
+            f"dialog {dlg_id}: extracted_mentions={dlg_mentions} errors={dlg_errors}"
+        )
 
     # До дедупа
     pre_count = len(all_mentions)

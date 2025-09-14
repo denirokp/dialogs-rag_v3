@@ -1,8 +1,10 @@
 {
-  "total_dialogs": 84,
-  "total_mentions": 642,
-  "success_rate": 1.0,
-  "quality_score": 0.7485202492211838,
-  "business_relevance": 0.0,
-  "actionability": 0.0
+  "dialogs": 84,
+  "mentions": 340,
+  "problems": 260,
+  "ideas": 41,
+  "signals": 39,
+  "evidence_100": true,
+  "dedup_removed_pct": 0.0,
+  "ambiguity_pct": 3.2
 }
