@@ -1,0 +1,287 @@
+# Unified Configuration for Dialogs RAG System
+# Единый конфиг для всех режимов работы системы
+
+# Общие настройки
+general:
+  version: "2.0.0"
+  default_mode: "auto"  # auto, legacy, pipeline, enhanced, scaled
+  log_level: "INFO"
+  debug: false
+
+# Настройки данных
+data:
+  input_dir: "data/input"
+  processed_dir: "data/processed"
+  warehouse_dir: "data/warehouse"
+  duckdb_dir: "data/duckdb"
+  artifacts_dir: "artifacts"
+  reports_dir: "reports"
+  
+  # Поддерживаемые форматы
+  supported_formats: ["xlsx", "csv", "parquet", "json"]
+  
+  # Маппинг колонок для разных источников
+  column_mapping:
+    dialog_id: ["dialog_id", "dlg_id", "id"]
+    turn_id: ["turn_id", "turn", "sequence"]
+    role: ["role", "speaker", "participant"]
+    text: ["text", "utterance", "message", "content"]
+
+# Настройки обработки
+processing:
+  # Окна для scaled режима
+  windows:
+    max_tokens: 1800
+    whole_dialog_max: 8000
+    overlap_tokens: 200
+  
+  # Батчи
+  batch_size: 100
+  max_workers: 4
+  timeout: 300
+  
+  # Параллелизация
+  enable_parallel: true
+  parallel_workers: 8
+
+# Настройки качества
+quality:
+  # Пороги DoD
+  thresholds:
+    dedup_max: 0.01
+    coverage_other_max: 2.0
+    ambiguity_max: 40.0
+    evidence_100: true
+    client_only_100: true
+    schema_valid_100: true
+  
+  # Проверки
+  enable_quality_checks: true
+  enable_auto_correction: false
+  quality_gate_enabled: true
+
+# Настройки LLM
+llm:
+  # OpenAI
+  openai:
+    api_key: "${OPENAI_API_KEY}"
+    model: "gpt-4o-mini"
+    temperature: 0.1
+    max_tokens: 4000
+    timeout: 30
+  
+  # Альтернативные провайдеры
+  anthropic:
+    api_key: "${ANTHROPIC_API_KEY}"
+    model: "claude-3-sonnet-20240229"
+  
+  # Локальные модели
+  local:
+    model_path: "models/"
+    device: "auto"
+
+# Настройки кластеризации
+clustering:
+  enable: true
+  algorithm: "hdbscan"  # hdbscan, kmeans, dbscan
+  
+  # HDBSCAN параметры
+  hdbscan:
+    min_cluster_size: 25
+    min_samples: 5
+    metric: "euclidean"
+  
+  # UMAP параметры
+  umap:
+    n_neighbors: 15
+    min_dist: 0.0
+    n_components: 15
+    metric: "cosine"
+  
+  # Эмбеддинги
+  embeddings:
+    model: "paraphrase-multilingual-MiniLM-L12-v2"
+    batch_size: 32
+    device: "auto"
+
+# Настройки API
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: true
+  workers: 1
+  
+  # CORS
+  cors:
+    allow_origins: ["*"]
+    allow_methods: ["*"]
+    allow_headers: ["*"]
+    allow_credentials: true
+  
+  # Аутентификация
+  auth:
+    enabled: false
+    secret_key: "${API_SECRET_KEY}"
+    token_expire_minutes: 60
+
+# Настройки дашборда
+dashboard:
+  host: "0.0.0.0"
+  port: 8501
+  theme: "light"
+  
+  # Графики
+  charts:
+    default_height: 400
+    enable_animations: true
+    color_scheme: "plotly"
+  
+  # Фильтры
+  filters:
+    default_page_size: 50
+    max_page_size: 1000
+    enable_theme_filter: true
+    enable_subtheme_filter: true
+
+# Настройки базы данных
+database:
+  # DuckDB
+  duckdb:
+    legacy_path: "data/rag.duckdb"
+    scaled_path: "data/duckdb/mentions.duckdb"
+    memory_limit: "1GB"
+    threads: 4
+  
+  # Кэширование
+  cache:
+    enabled: true
+    ttl: 3600  # секунды
+    max_size: 1000
+
+# Настройки логирования
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # Файлы логов
+  files:
+    main: "logs/main.log"
+    pipeline: "logs/pipeline.log"
+    api: "logs/api.log"
+    dashboard: "logs/dashboard.log"
+  
+  # Ротация
+  rotation:
+    max_bytes: 10485760  # 10MB
+    backup_count: 5
+
+# Настройки мониторинга
+monitoring:
+  enable: true
+  
+  # Метрики
+  metrics:
+    enable_prometheus: false
+    prometheus_port: 9090
+  
+  # Алерты
+  alerts:
+    enable_email: false
+    email_recipients: []
+    quality_threshold: 0.8
+
+# Настройки для разных режимов
+modes:
+  legacy:
+    enabled: true
+    description: "Оригинальная система с правилами"
+    features:
+      - "rule_based_extraction"
+      - "basic_quality_checks"
+      - "simple_aggregation"
+  
+  pipeline:
+    enabled: true
+    description: "Система с этапами обработки"
+    features:
+      - "stage_based_processing"
+      - "enhanced_quality_checks"
+      - "clustering"
+      - "detailed_aggregation"
+  
+  enhanced:
+    enabled: true
+    description: "Расширенная система с самообучением"
+    features:
+      - "contextual_analysis"
+      - "adaptive_prompts"
+      - "continuous_learning"
+      - "ab_testing"
+      - "auto_correction"
+  
+  scaled:
+    enabled: true
+    description: "Масштабированная система для 10k+ диалогов"
+    features:
+      - "polars_processing"
+      - "window_based_extraction"
+      - "advanced_clustering"
+      - "unified_api"
+      - "interactive_dashboard"
+
+# Настройки таксономии
+taxonomy:
+  path: "taxonomy.yaml"
+  auto_update: false
+  
+  # Валидация
+  validation:
+    strict_mode: true
+    required_themes: ["прочее"]
+    max_subthemes_per_theme: 20
+
+# Настройки производительности
+performance:
+  # Оптимизации
+  optimizations:
+    enable_polars: true
+    enable_duckdb: true
+    enable_caching: true
+    enable_parallel_processing: true
+  
+  # Лимиты
+  limits:
+    max_dialogs_per_batch: 10000
+    max_memory_usage: 0.8
+    max_processing_time: 3600  # секунды
+  
+  # Профилирование
+  profiling:
+    enable: false
+    output_dir: "profiles/"
+
+# Настройки безопасности
+security:
+  # Валидация входных данных
+  input_validation:
+    max_file_size: 104857600  # 100MB
+    allowed_extensions: [".xlsx", ".csv", ".parquet", ".json"]
+    sanitize_input: true
+  
+  # Ограничения API
+  rate_limiting:
+    enabled: false
+    requests_per_minute: 100
+    burst_size: 20
+
+# Настройки разработки
+development:
+  debug_mode: false
+  hot_reload: true
+  auto_migrate: true
+  
+  # Тестирование
+  testing:
+    enable_mocks: false
+    test_data_dir: "test_data/"
+    coverage_threshold: 0.8

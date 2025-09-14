@@ -1,0 +1,39 @@
+{
+  "basic_metrics": {
+    "N": 20,
+    "D": 11,
+    "D_share": 0.55,
+    "clusters_count": 6,
+    "total_quotes": 36,
+    "clusters_with_quotes": 6
+  },
+  "extraction_quality": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0
+  },
+  "clustering_quality": {
+    "duplicate_rate": 0.0,
+    "cluster_coherence": 0.0,
+    "clustering_quality": 0.6
+  },
+  "citation_quality": {
+    "avg_citation_length": 120.92,
+    "citation_coverage": 1.0,
+    "quality_score": 1.105
+  },
+  "semantic_quality": {
+    "concept_diversity": 0.241,
+    "semantic_richness": 0.0,
+    "context_richness": 0.0
+  },
+  "business_metrics": {
+    "actionable_insights": 0,
+    "priority_distribution": {
+      "низкий": 6
+    },
+    "solution_feasibility": 0.0
+  },
+  "overall_quality_score": 0.641,
+  "analysis_timestamp": "2025-09-14T03:45:18.387005"
+}

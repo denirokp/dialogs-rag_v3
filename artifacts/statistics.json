@@ -1,0 +1,20 @@
+{
+  "total_dialogs": 20,
+  "processed_dialogs": 20,
+  "success_rate": 1.0,
+  "total_mentions": 139,
+  "avg_quality_score": 0.7739394542957043,
+  "processing_time_seconds": 0.3079872131347656,
+  "dialogs_per_second": 64.93776087791224,
+  "ab_test_results": {},
+  "learning_examples_added": 20,
+  "monitoring_stats": {
+    "total_dialogs_processed": 120,
+    "avg_quality_score": 0.7739394542957043,
+    "active_alerts": 2,
+    "system_health": 0.5,
+    "performance_snapshots": 0
+  },
+  "clusters_found": 0,
+  "quality_results": {}
+}

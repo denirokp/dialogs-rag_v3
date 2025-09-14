@@ -83,7 +83,7 @@ def test_autolearning():
     logger.info(f"📊 Инсайты обучения: {insights}")
     
     # Проверяем паттерны
-    patterns = learning_system.get_learned_patterns()
+    patterns = learning_system.learned_patterns
     logger.info(f"🎯 Найдено паттернов: {len(patterns)}")
     
     # Проверяем эффективность обучения
@@ -124,15 +124,15 @@ def test_learning_integration():
             "enable_adaptive_prompts": False,
             "enable_monitoring": False,
             "enable_scaling": False,
-            "enable_validation": False,
-            "enable_dedup": False,
-            "enable_clustering": False,
-            "enable_quality_checks": False
+            "quality_threshold": 0.7,
+            "max_dialogs_per_batch": 1000,
+            "auto_save_results": True,
+            "output_directory": "test_results"
         }
     }
     
     # Создаем пайплайн
-    pipeline = ComprehensiveDoDPipeline(config)
+    pipeline = ComprehensiveDoDPipeline(config_dict=config)
     logger.info("✅ Пайплайн с автообучением создан")
     
     # Проверяем, что система обучения инициализирована

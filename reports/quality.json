@@ -1,0 +1,20 @@
+{
+  "N": 20,
+  "D": 11,
+  "D_share": 0.55,
+  "valid_rate": 0.364,
+  "no_entities_rate": 0.0,
+  "clusters_count": 6,
+  "avg_mentions_per_cluster": 2,
+  "avg_quotes_per_cluster": 6,
+  "total_quotes": 36,
+  "clusters_with_quotes": 6,
+  "quotes_coverage": 0.545,
+  "low_evidence_clusters": 0,
+  "clusters_by_type": {
+    "barriers": 2,
+    "ideas": 2,
+    "signals": 2,
+    "signals_platform": 0
+  }
+}

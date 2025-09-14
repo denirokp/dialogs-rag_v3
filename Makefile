@@ -1,67 +1,33 @@
-PY=python
+include .env
 
-# Основные цели DoD
+BATCH ?= $(BATCH_ID)
+N_DIALOGS ?= $(N_DIALOGS)
+
+PY := python
+
+run-all: ingest extract normalize dedup aggregate quality
+
+ingest:
+	$(PY) -m pipeline.ingest_excel --file data/input/dialogs.xlsx --batch $(BATCH)
+
 extract:
-	@echo ">> run your Stage 2 extractor to produce mentions.jsonl (client-only + evidence)"
+	$(PY) -m pipeline.extract_entities --batch $(BATCH)
+
+normalize:
+	$(PY) -m pipeline.normalize --batch $(BATCH)
 
 dedup:
-	$(PY) scripts/dedup.py --in mentions.jsonl --out mentions_dedup.jsonl
+	$(PY) -m pipeline.dedup --batch $(BATCH)
 
+# опционально (для "Кластера" в карточках подтем)
 cluster:
-	@echo ">> run scripts/clusterize.py per subtheme with your embeddings"
+	$(PY) -m pipeline.cluster_enrich --batch $(BATCH)
 
-summaries:
-	duckdb -c ".read sql/build_summaries.sql"
+aggregate:
+	$(PY) -m pipeline.aggregate --batch $(BATCH) --n_dialogs $(N_DIALOGS)
 
-report:
-	@echo ">> render jinja templates using your data loader"
+quality:
+	$(PY) -m pipeline.quality --batch $(BATCH) --n_dialogs $(N_DIALOGS)
 
-qa:
-	$(PY) quality/run_checks.py
-
-eval:
-	$(PY) scripts/eval_extraction.py --gold goldset/gold.jsonl --pred mentions_dedup.jsonl
-
-# Комплексная система
-comprehensive:
-	$(PY) comprehensive_dod_pipeline.py --input data/dialogs.xlsx --output artifacts --config final_pipeline_config.json
-
-test:
-	$(PY) test_comprehensive_system.py
-
-test-quick:
-	$(PY) -c "import asyncio; from test_comprehensive_system import test_file_loading, test_validation; test_file_loading(); test_validation(); print('✅ Быстрые тесты пройдены')"
-
-# Установка зависимостей
-install:
-	pip install -r requirements.txt
-	pip install -r requirements_enhanced.txt
-	pip install duckdb pandas numpy umap-learn hdbscan jinja2 redis
-
-# Очистка
-clean:
-	rm -rf artifacts/*.json artifacts/*.jsonl artifacts/*.npy
-	rm -rf logs/*.log
-	rm -rf test_results_*
-
-# Полный цикл DoD
-dod-full: clean install test comprehensive qa
-	@echo "🎯 Полный цикл DoD завершен!"
-
-# Помощь
-help:
-	@echo "Доступные команды:"
-	@echo "  extract     - Извлечение упоминаний (Stage 2)"
-	@echo "  dedup       - Дедупликация упоминаний"
-	@echo "  cluster     - Кластеризация упоминаний"
-	@echo "  summaries   - Построение сводок"
-	@echo "  report      - Генерация отчетов"
-	@echo "  qa          - Проверки качества DoD"
-	@echo "  eval        - Оценка на gold standard"
-	@echo "  comprehensive - Запуск комплексной системы"
-	@echo "  test        - Полное тестирование системы"
-	@echo "  test-quick  - Быстрые тесты"
-	@echo "  install     - Установка зависимостей"
-	@echo "  clean       - Очистка временных файлов"
-	@echo "  dod-full    - Полный цикл DoD"
-	@echo "  help        - Эта справка"
+api:
+	uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
