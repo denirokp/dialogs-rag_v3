@@ -88,7 +88,7 @@ SYSTEM = (
 USER_TMPL = (
     "Таксономия (themes→subthemes):\n{taxonomy}\n---\n"
     "Окно диалога (только клиент):\n{window}\n---\n"
-    "Верни JSON-объект {\"mentions\":[...]} со строгими ключами."
+    "Верни JSON-объект {{'mentions':[...]}} со строгими ключами."
 )
 
 class LLM:
