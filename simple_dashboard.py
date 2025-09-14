@@ -2,7 +2,7 @@
 import io
 import json
 from pathlib import Path
-from urllib.parse import urlencode, quote
+from urllib.parse import urlencode
 
 import numpy as np
 import pandas as pd
@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
 
-st.set_page_config(page_title="DialogsRAG Dashboard", layout="wide")
+st.set_page_config(page_title="DialogsRAG — панель разговоров", layout="wide")
 
 ART = Path("artifacts")
 RES_PATH = ART / "comprehensive_results.json"
@@ -26,7 +26,6 @@ PALETTE = {"problems": "#e74c3c", "ideas": "#f1c40f", "signals": "#3498db"}
 # ---------- helpers ----------
 
 def _get_query_params():
-    # Streamlit 1.32+: st.query_params, fallback for older
     try:
         return dict(st.query_params)
     except Exception:
@@ -35,8 +34,7 @@ def _get_query_params():
 
 def _set_query_params(params: dict):
     try:
-        st.query_params.clear()
-        st.query_params.update(params)
+        st.query_params.clear(); st.query_params.update(params)
     except Exception:
         st.experimental_set_query_params(**params)
 
@@ -75,23 +73,11 @@ def load_problems_artifacts():
 
 
 def file_hash() -> str:
-    # Простая сигнатура артефактов
     parts = []
     for p in [RES_PATH, STATS_PATH, PM_SUM, PM_SUB, PM_IDX, PM_CARDS]:
         if p.exists():
-            st_mtime = int(p.stat().st_mtime)
-            size = p.stat().st_size
-            parts.append(f"{p.name}:{st_mtime}:{size}")
+            parts.append(f"{p.name}:{int(p.stat().st_mtime)}:{p.stat().st_size}")
     return str(hash("|".join(parts)))
-
-
-def annotate_bars(fig, x_col: str, y_col: str, fmt: str = "+.0f"):
-    try:
-        fig.update_traces(texttemplate="%{y}", textposition="outside", cliponaxis=False)
-    except Exception:
-        pass
-    fig.update_layout(uniformtext_minsize=10, uniformtext_mode="hide")
-    return fig
 
 
 def to_csv_bytes(df: pd.DataFrame) -> bytes:
@@ -118,6 +104,17 @@ def highlight_html(text: str, q: str) -> str:
         return text
 
 
+def prettify_table(df: pd.DataFrame) -> pd.DataFrame:
+    return df.rename(columns={
+        "dialog_id":"ID звонка",
+        "turn_id":"№ реплики",
+        "label_type":"Тип",
+        "theme":"Тема",
+        "subtheme":"Подтема",
+        "text_quote":"Цитата клиента",
+        "confidence":"Уверенность"
+    })
+
 # ---------- data ----------
 
 qparams = _get_query_params()
@@ -130,34 +127,51 @@ sig = file_hash()
 if "_sig" not in st.session_state:
     st.session_state["_sig"] = sig
 elif st.session_state["_sig"] != sig:
-    st.info("Найдены новые артефакты. Нажмите для обновления.")
+    st.info("Обнаружены новые файлы отчётов. Нажмите, чтобы обновить экран.")
     if st.button("🔄 Обновить дашборд"):
         st.session_state["_sig"] = sig
-        st.cache_data.clear()
-        st.rerun()
+        st.cache_data.clear(); st.rerun()
 
 # ---------- sidebar ----------
 st.sidebar.header("Фильтры")
-metric_mode = st.sidebar.radio("Метрика", ["dialogs", "mentions"], index=0, help="Переключает расчёт графиков")
+st.sidebar.caption("Слева выбираем, что смотреть. Все графики и таблицы ниже перестраиваются.")
+
+metric_label = st.sidebar.radio(
+    "Что считаем на графиках?",
+    ["Звонки (диалоги)", "Фразы клиентов (упоминания)"], index=0,
+    help="Звонки — уникальные разговоры. Фразы — количество цитат в этих разговорах."
+)
+metric_mode = "dialogs" if metric_label.startswith("Звонки") else "mentions"
+metric_axis_name = "Звонки" if metric_mode == "dialogs" else "Фразы"
 
 label_opts = sorted(df["label_type"].unique()) if not df.empty else ["problems","ideas","signals"]
 label_default = qparams.get("labels", ",".join(label_opts)).split(",") if df.shape[0] else label_opts
-label_sel = st.sidebar.multiselect("Типы сущностей", options=label_opts, default=[x for x in label_default if x in label_opts])
+label_sel = st.sidebar.multiselect(
+    "Типы сущностей",
+    options=label_opts, default=[x for x in label_default if x in label_opts],
+    help="Проблемы — жалобы; Идеи — просьбы и предложения; Сигналы — позитив/негатив/нейтральные реакции."
+)
 
-conf_min, conf_max = st.sidebar.slider("Диапазон confidence", 0.0, 1.0, (
-    float(qparams.get("cmin", 0.0)), float(qparams.get("cmax", 1.0))
-), 0.05)
+conf_min, conf_max = st.sidebar.slider(
+    "Надёжность распознавания (confidence)", 0.0, 1.0,
+    (float(qparams.get("cmin", 0.0)), float(qparams.get("cmax", 1.0))), 0.05,
+    help="0 — нет уверенности, 1 — очень уверенно. Обычно смотрим ≥ 0.6."
+)
 
-search = st.sidebar.text_input("Поиск в цитатах", value=qparams.get("q", ""))
+search = st.sidebar.text_input(
+    "Поиск по словам клиента",
+    value=qparams.get("q", ""),
+    help="Например: подписка, доставка, возврат"
+)
 
 if not df.empty:
     df_seed = df[df["label_type"].isin(label_sel) & df["confidence"].between(conf_min, conf_max)]
     theme_opts = sorted(df_seed["theme"].unique())
     theme_default = [t for t in qparams.get("themes", ",".join(theme_opts)).split(",") if t in theme_opts]
-    theme_sel = st.sidebar.multiselect("Темы", options=theme_opts, default=(theme_default or theme_opts))
+    theme_sel = st.sidebar.multiselect("Темы", options=theme_opts, default=(theme_default or theme_opts), help="Группа вопросов. Например: доставка, поддержка.")
     sub_opts = sorted(df_seed[df_seed["theme"].isin(theme_sel)]["subtheme"].unique())
     sub_default = [t for t in qparams.get("subs", ",".join(sub_opts)).split(",") if t in sub_opts]
-    sub_sel = st.sidebar.multiselect("Подтемы", options=sub_opts, default=(sub_default or sub_opts))
+    sub_sel = st.sidebar.multiselect("Подтемы", options=sub_opts, default=(sub_default or sub_opts), help="Более конкретный аспект темы.")
 else:
     df_seed = df.copy(); theme_sel = []; sub_sel = []
 
@@ -179,36 +193,30 @@ current_params = {
     "themes": ",".join(theme_sel),
     "subs": ",".join(sub_sel),
 }
-try:
-    base_url = st.secrets.get("BASE_URL", "") or ""
-except Exception:
-    base_url = ""
-share_url = (base_url or st.request.url if hasattr(st, "request") else "")
-try:
-    # на Streamlit Cloud ст.request недоступен — сделаем относительную ссылку
-    share_url = "?" + urlencode(current_params)
-except Exception:
-    share_url = "?" + urlencode(current_params)
+share_url = "?" + urlencode(current_params)
 
-with st.sidebar.expander("Пресеты/шаринг"):
+with st.sidebar.expander("Пресеты и шаринг", expanded=False):
+    st.caption("Ссылка ниже откроет этот же срез для коллег.")
     st.code(share_url, language="text")
-    st.caption("Скопируй ссылку — она восстановит те же фильтры")
-    if st.button("Применить текущие фильтры в URL"):
+    if st.button("📎 Применить ссылку в адресной строке"):
         _set_query_params(current_params)
+    st.caption("Можно добавить в закладки браузера.")
 
 # ---------- HEADER / KPI ----------
-st.title("DialogsRAG Dashboard — v2.1")
+st.title("Панель разговоров — понятным языком")
+st.caption("Эта панель помогает быстро увидеть, о чём говорят клиенты: где болит (проблемы), что просят (идеи) и как реагируют (сигналы).")
+
 col1, col2, col3, col4, col5 = st.columns(5)
-col1.metric("Диалогов", value=stats.get("dialogs", 0))
-col2.metric("Упоминаний", value=stats.get("mentions", 0))
-col3.metric("Problems", value=stats.get("problems", 0))
-col4.metric("Ideas", value=stats.get("ideas", 0))
-col5.metric("Signals", value=stats.get("signals", 0))
+col1.metric("Звонков", value=stats.get("dialogs", 0), help="Сколько уникальных разговоров обработано")
+col2.metric("Фраз клиентов", value=stats.get("mentions", 0), help="Сколько кусочков речи мы извлекли из этих разговоров")
+col3.metric("Проблем", value=stats.get("problems", 0))
+col4.metric("Идей", value=stats.get("ideas", 0))
+col5.metric("Сигналов", value=stats.get("signals", 0))
 
 st.caption(
-    f"Evidence-100: {'✅' if stats.get('evidence_100') else '❌'} · "
-    f"Дедуп снято: {stats.get('dedup_removed_pct', 0)}% · "
-    f"Ambiguity (<0.6): {stats.get('ambiguity_pct', 0)}%"
+    f"Доказательства: {'все есть ✅' if stats.get('evidence_100') else 'не везде ❌'}  •  "
+    f"Дубликаты сняты: {stats.get('dedup_removed_pct', 0)}%  •  "
+    f"Сомнительных (<0.6): {stats.get('ambiguity_pct', 0)}%"
 )
 
 # ---------- tabs ----------
@@ -222,24 +230,28 @@ st.caption(
     tab_quality,
 ) = st.tabs([
     "Обзор",
-    "Проблемы (raw)",
-    "Идеи (raw)",
-    "Сигналы (raw)",
-    "🚫 Проблемы (консолидация)",
+    "Проблемы — список",
+    "Идеи — список",
+    "Сигналы — список",
+    "Сводка по проблемам",
     "Связи тем",
-    "Качество",
+    "Качество распознавания",
 ])
 
 # ===== Обзор =====
 with tab_overview:
+    st.info("""
+    **Как читать экран:**
+    1) Слева выберите типы сущностей и нужные темы. 
+    2) Ниже три графика покажут самые частые темы для проблем, идей и сигналов. 
+    3) Можно переключить расчёт: **Звонки** (сколько разговоров затрагивали тему) или **Фразы** (сколько цитат).
+    """)
+
     if df_f.empty:
-        st.info("Нет данных для отображения.")
+        st.warning("Нет данных для отображения. Проверьте фильтры слева.")
     else:
-        st.subheader("Top‑N тем по типам")
-        # Faceted bars: три маленьких чарта
+        st.subheader("Топ тем по типам (чем чаще — тем выше)")
         topn = 8
-        left, right = st.columns([1,1])
-        
         def _agg(metric: str):
             if metric == "dialogs":
                 return (
@@ -252,23 +264,25 @@ with tab_overview:
                     .rename(columns={"text_quote": "value"})
                 )
         agg = _agg(metric_mode)
-        # разбить по типам
         for lbl in ["problems","ideas","signals"]:
             d = agg[agg["label_type"]==lbl].sort_values("value", ascending=False).head(topn)
-            if d.empty: continue
+            if d.empty: 
+                st.caption(f"Нет данных для: {lbl}")
+                continue
+            title_lbl = {"problems":"Проблемы","ideas":"Идеи","signals":"Сигналы"}[lbl]
             fig = px.bar(
                 d.sort_values("value"),
                 x="value", y="theme", orientation="h",
-                title=f"{lbl}: Топ тем ({metric_mode})",
-                color_discrete_sequence=[PALETTE.get(lbl, "#777")],
-                text="value",
+                title=f"{title_lbl}: самые частые темы ({metric_axis_name})",
+                color_discrete_sequence=[PALETTE.get(lbl, "#777")], text="value",
             )
-            fig.update_layout(yaxis_title="", xaxis_title=metric_mode)
+            fig.update_layout(yaxis_title="Тема", xaxis_title=metric_axis_name)
             st.plotly_chart(fig, use_container_width=True)
         
         st.markdown("---")
-        st.subheader("Структура выбранной темы (100% stacked)")
-        sel_lbl = st.selectbox("Тип", ["problems","ideas","signals"], index=0)
+        st.subheader("Из чего состоит тема (100% столбик)")
+        st.caption("Выберите тип и тему — увидите, какие подтемы дают основной вклад. Сумма всегда = 100%.")
+        sel_lbl = st.selectbox("Тип сущности", ["problems","ideas","signals"], index=0)
         themes_for_lbl = sorted(df_f[df_f["label_type"]==sel_lbl]["theme"].unique())
         if themes_for_lbl:
             sel_theme = st.selectbox("Тема", themes_for_lbl, index=0)
@@ -279,9 +293,12 @@ with tab_overview:
                          text="share", color_discrete_sequence=[PALETTE.get(sel_lbl,"#777")])
             fig.update_layout(xaxis_title="Доля, %", yaxis_title="Подтема")
             st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Для выбранных фильтров нет тем.")
         
         st.markdown("---")
-        st.subheader("Treemap: состав mentions по типу/теме/подтеме")
+        st.subheader("Карта тем → подтем (Treemap)")
+        st.caption("Размер прямоугольника — сколько фраз. Наводите курсор для деталей.")
         agg2 = (
             df_f.groupby(["label_type", "theme", "subtheme"], as_index=False)["text_quote"].count()
         ).rename(columns={"text_quote": "mentions"})
@@ -292,92 +309,90 @@ with tab_overview:
         st.plotly_chart(fig, use_container_width=True)
 
         st.markdown("---")
-        st.subheader("Сырые упоминания (фильтрованные)")
-        # подсветка поиска (опционально)
-        hl = st.toggle("Подсветить фразу поиска в цитатах", value=bool(search.strip()))
+        st.subheader("Сырые фразы (по выбранным фильтрам)")
+        st.caption("Это реальные цитаты клиентов. Сначала — короткий список, можно скачать файл ниже.")
+        hl = st.toggle("Подсветить слово поиска в цитатах", value=bool(search.strip()))
         table = df_f.sort_values(["label_type","theme","subtheme"]).reset_index(drop=True)
         if hl and search.strip():
-            t = table.copy()
-            t["text_quote"] = t["text_quote"].apply(lambda x: highlight_html(x, search))
-            st.markdown(t.to_html(escape=False, index=False), unsafe_allow_html=True)
+            t = table.copy(); t["text_quote"] = t["text_quote"].apply(lambda x: highlight_html(x, search))
+            st.markdown(prettify_table(t).to_html(escape=False, index=False), unsafe_allow_html=True)
         else:
-            st.dataframe(table, use_container_width=True, height=440)
+            st.dataframe(prettify_table(table), use_container_width=True, height=440)
         
-        # Экспорт
         colx, coly = st.columns(2)
         with colx:
-            st.download_button("⬇️ Экспорт CSV (фильтр)", data=to_csv_bytes(table), file_name="mentions_filtered.csv", mime="text/csv")
+            st.download_button("⬇️ Скачать CSV (то, что на экране)", data=to_csv_bytes(table), file_name="mentions_filtered.csv", mime="text/csv")
         with coly:
-            st.download_button(
-                "⬇️ Экспорт Excel (лист Mentions)",
-                data=to_excel_bytes({"Mentions": table}),
-                file_name="mentions_filtered.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            )
+            st.download_button("⬇️ Скачать Excel", data=to_excel_bytes({"Цитаты": prettify_table(table)}), file_name="mentions_filtered.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # ===== RAW =====
 
 def render_raw(df_src: pd.DataFrame, label: str):
+    name = {"problems":"Проблемы","ideas":"Идеи","signals":"Сигналы"}[label]
+    st.info(f"Здесь список тем и цитат для: **{name}**. Слева можно сузить фильтры.")
     d = df_src[df_src["label_type"] == label]
     if d.empty:
-        st.info("Нет строк.")
+        st.warning("Нет строк.")
         return
     c1, c2 = st.columns([1,1])
-    # Диалоги vs Упоминания по темам
-    top_dialogs = d.groupby("theme")["dialog_id"].nunique().rename("dialogs")
-    top_mentions = d.groupby("theme")["text_quote"].count().rename("mentions")
+    top_dialogs = d.groupby("theme")["dialog_id"].nunique().rename("Звонки")
+    top_mentions = d.groupby("theme")["text_quote"].count().rename("Фразы")
     top = pd.concat([top_dialogs, top_mentions], axis=1).reset_index().fillna(0)
-    top = top.sort_values("dialogs", ascending=False).head(15)
-    fig = px.bar(top.melt(id_vars="theme", value_vars=["dialogs","mentions"]),
+    top = top.sort_values("Звонки", ascending=False).head(15)
+    fig = px.bar(top.melt(id_vars="theme", value_vars=["Звонки","Фразы"]),
                  x="value", y="theme", color="variable", barmode="group",
-                 orientation="h", title=f"{label}: Диалоги vs Упоминания (топ тем)")
+                 orientation="h", title=f"{name}: темы — звонки vs фразы")
+    fig.update_layout(xaxis_title="Количество", yaxis_title="Тема")
     st.plotly_chart(fig, use_container_width=True)
     
-    # Box по confidence для топ‑подтем
     sub_counts = d.groupby("subtheme").size().sort_values(ascending=False).head(12)
     top_sub = d[d["subtheme"].isin(sub_counts.index)]
     if not top_sub.empty:
         fig2 = px.box(top_sub, x="subtheme", y="confidence", points="outliers",
-                      title="Распределение confidence по топ‑подтемам")
+                      title="Надёжность распознавания по подтемам (чем правее — тем лучше)")
         fig2.update_layout(xaxis_tickangle=30)
         st.plotly_chart(fig2, use_container_width=True)
     
     st.markdown("---")
-    st.dataframe(d.sort_values(["theme","subtheme","confidence"], ascending=[True,True,False]),
+    st.dataframe(prettify_table(d.sort_values(["theme","subtheme","confidence"], ascending=[True,True,False])),
                  use_container_width=True, height=480)
 
-with tab_problems_raw:
-    render_raw(df_f, "problems")
-with tab_ideas_raw:
-    render_raw(df_f, "ideas")
-with tab_signals_raw:
-    render_raw(df_f, "signals")
+with tab_problems_raw: render_raw(df_f, "problems")
+with tab_ideas_raw:    render_raw(df_f, "ideas")
+with tab_signals_raw:  render_raw(df_f, "signals")
 
 # ===== Консолидация проблем =====
 with tab_problems_cons:
-    st.header("🚫 Проблемы (консолидация)")
+    st.header("Сводка по проблемам")
+    st.info("""
+    **Зачем эта вкладка:** мы объединяем похожие формулировки в укрупнённые проблемы. 
+    Ниже видно, какие из них встречаются чаще всего и из каких подтем они складываются.
+    """)
     if not PM_SUM.exists():
-        st.warning("Нет artifacts/problems_summary.csv — прогоните consolidate_and_summarize.py")
+        st.warning("Нет artifacts/problems_summary.csv — запустите consolidate_and_summarize.py")
     else:
         ps, sub, idx, cards = load_problems_artifacts()
-        st.subheader("Сводные метрики")
+        st.subheader("Таблица по всем проблемам")
+        st.caption("Звонки — в скольких разговорах всплывала проблема. Фразы — сколько цитат внутри них.")
         st.dataframe(ps, use_container_width=True)
-        # Pareto: dialogs + cum share
+        
+        st.subheader("Какие 20% дают 80% охвата (Pareto)")
+        st.caption("Столбики — звонки, линия — накопленная доля звонков, %.")
         d = ps.sort_values("dialogs", ascending=False).copy()
         d["cum_share"] = (d["dialogs"].cumsum() / max(1, d["dialogs"].sum()) * 100).round(1)
         fig = make_subplots(specs=[[{"secondary_y": True}]])
-        fig.add_trace(go.Bar(x=d["problem_title"], y=d["dialogs"], name="dialogs"), secondary_y=False)
-        fig.add_trace(go.Scatter(x=d["problem_title"], y=d["cum_share"], name="cum %", mode="lines+markers"), secondary_y=True)
-        fig.update_layout(title_text="Pareto: диалоги по проблемам", xaxis_tickangle=30)
-        fig.update_yaxes(title_text="Диалоги", secondary_y=False)
-        fig.update_yaxes(title_text="Кумулятивная доля, %", secondary_y=True, range=[0, 100])
+        fig.add_trace(go.Bar(x=d["problem_title"], y=d["dialogs"], name="Звонки"), secondary_y=False)
+        fig.add_trace(go.Scatter(x=d["problem_title"], y=d["cum_share"], name="Накопл. доля, %", mode="lines+markers"), secondary_y=True)
+        fig.update_layout(title_text="Pareto: разговоры по проблемам", xaxis_tickangle=30)
+        fig.update_yaxes(title_text="Звонки", secondary_y=False)
+        fig.update_yaxes(title_text="Доля, %", secondary_y=True, range=[0, 100])
         st.plotly_chart(fig, use_container_width=True)
 
-        st.markdown("---")
-        st.subheader("Sankey: подтемы → проблема")
+        st.subheader("Как подтемы перетекают в проблему (Sankey)")
+        st.caption("Толстая линия = больше разговоров. Слева — подтемы, справа — укрупнённая проблема.")
         if not idx.empty:
             g = idx.groupby(["theme","subtheme","problem_id","problem_title"])['dialog_id'].nunique().reset_index(name="dialogs")
-            # узлы
             subs = g.apply(lambda r: f"{r['theme']} / {r['subtheme']}", axis=1).unique().tolist()
             probs = g["problem_title"].unique().tolist()
             nodes = subs + probs
@@ -385,75 +400,67 @@ with tab_problems_cons:
             src = [idx_map[f"{r.theme} / {r.subtheme}"] for r in g.itertuples()]
             dst = [idx_map[r.problem_title] for r in g.itertuples()]
             val = [int(r.dialogs) for r in g.itertuples()]
-            sankey = go.Sankey(
-                node=dict(label=nodes),
-                link=dict(source=src, target=dst, value=val)
-            )
+            sankey = go.Sankey(node=dict(label=nodes), link=dict(source=src, target=dst, value=val))
             st.plotly_chart(go.Figure(sankey), use_container_width=True)
         else:
             st.info("Нет индекса цитат для Sankey.")
 
-        st.markdown("---")
-        st.subheader("Heatmap покрытия карты (темы × проблема)")
+        st.subheader("Насколько хорошо покрыта карта соответствий (Heatmap)")
+        st.caption("Где ячейка пустая — карту можно обогатить (подтема ещё не привязана к проблеме).")
         if not idx.empty:
             cov = idx.groupby(["theme","problem_title"])['dialog_id'].nunique().reset_index(name="dialogs")
             pivot = cov.pivot(index="theme", columns="problem_title", values="dialogs").fillna(0)
             fig = px.imshow(pivot, aspect="auto", color_continuous_scale="Blues", origin="lower")
             st.plotly_chart(fig, use_container_width=True)
         
-        st.markdown("---")
-        # «Прочее/не сконсолидировано» — детектор доли
         if not ps.empty and (ps["problem_id"]=="other_unmapped").any():
             unm = ps[ps["problem_id"]=="other_unmapped"].iloc[0]
-            st.warning(f"Прочее/не сконсолидировано: {unm['share_dialogs_pct']}% диалогов · {int(unm['mentions'])} упомин.")
+            st.warning(f"Прочее/не сконсолидировано: {unm['share_dialogs_pct']}% звонков · {int(unm['mentions'])} фраз.")
             if not idx.empty:
                 cand = (idx[idx["problem_id"]=="other_unmapped"]
                         .groupby(["theme","subtheme"])['dialog_id'].nunique().reset_index(name="dialogs")
                         .sort_values("dialogs", ascending=False).head(15))
-                st.write("Кандидаты для карты (тема/подтема по диалогам):")
+                st.caption("Это подсказки, что добавить в карту соответствий (problem_map.yaml).")
                 st.dataframe(cand, use_container_width=True)
         
-        st.markdown("---")
-        st.subheader("Карточки проблем")
+        st.subheader("Карточки проблем — человеческим языком")
         for _, row in ps.sort_values("dialogs", ascending=False).iterrows():
             pid, title = row["problem_id"], row["problem_title"]
-            with st.expander(f"{title} — {int(row['mentions'])} упом. / {int(row['dialogs'])} диалогов ({row['share_dialogs_pct']}%)"):
+            with st.expander(f"{title} — {int(row['mentions'])} фраз · {int(row['dialogs'])} звонков ({row['share_dialogs_pct']}%)"):
                 if not cards.empty and pid in set(cards.get("problem_id", pd.Series()).values):
                     js = cards[cards["problem_id"] == pid].iloc[0]
-                    st.markdown(f"**Определение.** {js.get('definition','')}")
-                    st.markdown(f"**Почему важно.** {js.get('why_it_matters','')}")
+                    st.markdown(f"**О чём речь.** {js.get('definition','')}")
+                    st.markdown(f"**Почему это важно.** {js.get('why_it_matters','')}")
                     motifs = js.get("common_motifs", [])
                     if isinstance(motifs, str):
-                        try:
-                            motifs = json.loads(motifs)
-                        except Exception:
-                            motifs = [motifs]
-                    if motifs:
-                        st.markdown("**Частые мотивы:** " + ", ".join(motifs))
+                        try: motifs = json.loads(motifs)
+                        except Exception: motifs = [motifs]
+                    if motifs: st.markdown("**Частые мотивы:** " + ", ".join(motifs))
                 if not sub.empty:
                     st.markdown("**Подтемы (топ):**")
                     st.dataframe(sub[sub["problem_id"] == pid].head(10), use_container_width=True)
                 if not idx.empty:
-                    st.markdown("**Цитаты (фрагмент):**")
+                    st.markdown("**Примеры фраз:**")
                     cols = ["dialog_id","turn_id","theme","subtheme","text_quote","confidence"]
-                    st.dataframe(idx[idx["problem_id"] == pid][cols].head(50), use_container_width=True)
-        
-        # экспорт сводных
-        st.download_button("⬇️ Экспорт проблем (CSV)", data=to_csv_bytes(ps), file_name="problems_summary.csv", mime="text/csv")
+                    st.dataframe(prettify_table(idx[idx["problem_id"] == pid][cols]).rename(columns={"ID звонка":"dialog_id"}),
+                                 use_container_width=True)
+        st.download_button("⬇️ Скачать CSV со сводкой проблем", data=to_csv_bytes(ps), file_name="problems_summary.csv", mime="text/csv")
 
 # ===== Связи тем =====
 with tab_links:
-    st.subheader("Ко‑встречаемость тем (по диалогам)")
+    st.info("""
+    **Что здесь:** матрица показывает, какие темы встречаются **в одном и том же звонке**. 
+    Чем темнее клетка, тем чаще пара встречается вместе.
+    """)
     if df_f.empty:
-        st.info("Нет данных.")
+        st.warning("Нет данных.")
     else:
-        # Собираем множество тем по диалогу → матрица пересечений
         per_dialog = df_f.groupby(["dialog_id","theme"]).size().reset_index().drop(columns=0)
         themes = sorted(per_dialog["theme"].unique())
         idx_map = {t:i for i,t in enumerate(themes)}
         n = len(themes)
         mat = np.zeros((n,n), dtype=int)
-        for dlg, g in per_dialog.groupby("dialog_id"):
+        for _, g in per_dialog.groupby("dialog_id"):
             ts = sorted(set(g["theme"]))
             for i in range(len(ts)):
                 for j in range(i, len(ts)):
@@ -464,26 +471,26 @@ with tab_links:
         fig.update_layout(xaxis_tickangle=45)
         st.plotly_chart(fig, use_container_width=True)
         
-        # Топ‑пар
         pairs = []
         for i in range(n):
             for j in range(i+1, n):
                 pairs.append((themes[i], themes[j], int(mat[i,j])))
-        pairs_df = pd.DataFrame(pairs, columns=["theme_a","theme_b","dialogs"]).sort_values("dialogs", ascending=False).head(20)
+        pairs_df = pd.DataFrame(pairs, columns=["Тема A","Тема B","Звонки вместе"]).sort_values("Звонки вместе", ascending=False).head(20)
         st.dataframe(pairs_df, use_container_width=True)
 
 # ===== Качество =====
 with tab_quality:
-    st.subheader("Распределение confidence")
+    st.info("""
+    **Подсказка:** хорошая картина — когда большинство точек правее 0.6. 
+    Если много слева, смотрим темы на RAW‑вкладках и корректируем правила/таксономию.
+    """)
     if df_f.empty:
-        st.info("Нет данных.")
+        st.warning("Нет данных.")
     else:
         fig = px.histogram(df_f, x="confidence", color="label_type", nbins=20, barmode="overlay", color_discrete_map=PALETTE)
-        fig.update_layout(xaxis_title="confidence", yaxis_title="кол-во упоминаний")
+        fig.update_layout(xaxis_title="Надёжность (0…1)", yaxis_title="Сколько фраз")
         st.plotly_chart(fig, use_container_width=True)
-
-        # метрики по порогам
         low = (df_f["confidence"] < 0.6).mean()*100
         med = df_f["confidence"].median()
         p90 = df_f["confidence"].quantile(0.9)
-        st.caption(f"<0.6: {low:.1f}% · median: {med:.2f} · p90: {p90:.2f}")
+        st.caption(f"Меньше 0.6: {low:.1f}%  •  Медиана: {med:.2f}  •  90-й перцентиль: {p90:.2f}")
