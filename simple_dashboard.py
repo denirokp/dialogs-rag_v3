@@ -179,7 +179,10 @@ current_params = {
     "themes": ",".join(theme_sel),
     "subs": ",".join(sub_sel),
 }
-base_url = st.secrets.get("BASE_URL", "") or ""
+try:
+    base_url = st.secrets.get("BASE_URL", "") or ""
+except Exception:
+    base_url = ""
 share_url = (base_url or st.request.url if hasattr(st, "request") else "")
 try:
     # на Streamlit Cloud ст.request недоступен — сделаем относительную ссылку
