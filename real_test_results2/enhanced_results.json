@@ -1,0 +1,122 @@
+[
+  {
+    "dialog_id": 0,
+    "dialog": 136110475,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 1,
+    "dialog": 136110619,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 2,
+    "dialog": 136110981,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 3,
+    "dialog": 136110056,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 4,
+    "dialog": 136110410,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 5,
+    "dialog": 136110133,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 6,
+    "dialog": 136110073,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 7,
+    "dialog": 136110136,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 8,
+    "dialog": 136110545,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 9,
+    "dialog": 136110667,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 10,
+    "dialog": 136110137,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 11,
+    "dialog": 136110546,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 12,
+    "dialog": 136110169,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 13,
+    "dialog": 136110478,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 14,
+    "dialog": 136110479,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 15,
+    "dialog": 136110515,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 16,
+    "dialog": 136110421,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 17,
+    "dialog": 136110936,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 18,
+    "dialog": 136111014,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  },
+  {
+    "dialog_id": 19,
+    "dialog": 136110525,
+    "error": "'int' object has no attribute 'lower'",
+    "quality_score": 0.0
+  }
+]

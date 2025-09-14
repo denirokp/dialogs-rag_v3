@@ -1,0 +1,97 @@
+themes:
+  - id: "delivery"
+    name: "доставка"
+    subthemes:
+      - id: "selective_not_working"
+        name: "не работает выборочно"
+      - id: "setup_failed"
+        name: "не удаётся настроить"
+      - id: "weight_dimensions_kgt"
+        name: "вес/габариты/КГТ"
+      - id: "region_coverage"
+        name: "регион/покрытие"
+      - id: "delivery_terms_tracking"
+        name: "сроки/трек"
+
+  - id: "promotion"
+    name: "продвижение"
+    subthemes:
+      - id: "not_profitable"
+        name: "не окупается"
+      - id: "high_cost"
+        name: "высокая стоимость"
+      - id: "mechanism_unclear"
+        name: "не понимает механику"
+      - id: "subscriptions_not_suitable"
+        name: "подписки не подходят"
+
+  - id: "pricing"
+    name: "цены"
+    subthemes:
+      - id: "fixed_price"
+        name: "фиксированная цена"
+      - id: "expensive_for_category"
+        name: "дорого для категории"
+      - id: "requests_discounts"
+        name: "просит скидки"
+
+  - id: "product"
+    name: "продукт"
+    subthemes:
+      - id: "functionality_unclear"
+        name: "функционал не понятен"
+      - id: "bug_failure"
+        name: "баг/сбой"
+
+  - id: "support"
+    name: "поддержка"
+    subthemes:
+      - id: "contacted_no_help"
+        name: "обращался — не помогло"
+      - id: "long_waiting"
+        name: "долгое ожидание"
+
+  - id: "payment_refunds"
+    name: "оплата/возвраты"
+    subthemes:
+      - id: "difficult_to_return"
+        name: "сложно вернуть"
+      - id: "payment_delays"
+        name: "задержки выплат"
+
+  - id: "assortment"
+    name: "ассортимент"
+    subthemes:
+      - id: "rare_position"
+        name: "редкая позиция"
+      - id: "no_demand"
+        name: "нет спроса"
+
+  - id: "ui_settings"
+    name: "UI/настройки"
+    subthemes:
+      - id: "unclear_interface"
+        name: "непонятный интерфейс"
+      - id: "hard_to_find_option"
+        name: "сложно найти опцию"
+
+  - id: "logistics_timing"
+    name: "логистика/сроки"
+    subthemes:
+      - id: "long_in_transit"
+        name: "долго в пути"
+      - id: "no_tracking"
+        name: "нет отслеживания"
+
+  - id: "comparison_competitors"
+    name: "сравнение/конкуренты"
+    subthemes:
+      - id: "prefers_other_operator"
+        name: "предпочитает другого оператора"
+
+  - id: "other"
+    name: "прочее"
+    subthemes: []
+
+limits:
+  max_subthemes: 60

@@ -1,0 +1,88 @@
+{
+  "openai_api_key": "your-api-key-here",
+  "processing": {
+    "enable_autocorrection": true,
+    "enable_adaptive_prompts": true,
+    "enable_continuous_learning": true,
+    "enable_monitoring": true,
+    "enable_scaling": true,
+    "max_dialogs_per_batch": 1000,
+    "quality_threshold": 0.6,
+    "auto_save_results": true,
+    "output_directory": "final_results"
+  },
+  "quality_autocorrection": {
+    "min_quote_length": 10,
+    "max_quote_length": 500,
+    "similarity_threshold": 0.8,
+    "noise_patterns": [
+      "угу", "да", "нет", "хм", "эм", "ну", "ага", "окей", "хорошо"
+    ],
+    "quality_weights": {
+      "length": 0.3,
+      "content": 0.4,
+      "context": 0.3
+    }
+  },
+  "adaptive_prompts": {
+    "variants": ["base", "detailed", "minimal", "contextual"],
+    "ab_test_duration_days": 7,
+    "min_samples_per_variant": 10,
+    "confidence_level": 0.95,
+    "auto_switch_threshold": 0.1
+  },
+  "continuous_learning": {
+    "min_quality_threshold": 0.3,
+    "max_examples_per_batch": 100,
+    "learning_rate": 0.01,
+    "retention_days": 30,
+    "pattern_detection": {
+      "enabled": true,
+      "min_pattern_frequency": 3,
+      "similarity_threshold": 0.7
+    }
+  },
+  "quality_monitoring": {
+    "enabled": true,
+    "snapshot_interval_minutes": 5,
+    "alert_thresholds": {
+      "avg_quality_score": {"warning": 0.6, "critical": 0.4},
+      "processing_time": {"warning": 2.0, "critical": 5.0},
+      "error_rate": {"warning": 0.05, "critical": 0.1},
+      "throughput": {"warning": 50, "critical": 20}
+    },
+    "dashboard_enabled": true,
+    "auto_alerts": true
+  },
+  "scaling_optimizer": {
+    "max_workers": 32,
+    "batch_size": 100,
+    "memory_limit_gb": 8,
+    "cache_enabled": true,
+    "cache_ttl_seconds": 3600,
+    "parallel_processing": true,
+    "resource_monitoring": true
+  },
+  "ab_testing": {
+    "enabled": true,
+    "test_duration_hours": 24,
+    "min_sample_size": 50,
+    "statistical_significance": 0.95,
+    "auto_winner_selection": true,
+    "fallback_variant": "base"
+  },
+  "output_formats": {
+    "json": true,
+    "excel": true,
+    "csv": false,
+    "html_dashboard": true,
+    "markdown_report": true
+  },
+  "logging": {
+    "level": "INFO",
+    "file_enabled": true,
+    "console_enabled": true,
+    "max_file_size_mb": 100,
+    "backup_count": 5
+  }
+}

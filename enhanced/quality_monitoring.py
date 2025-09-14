@@ -95,7 +95,7 @@ class QualityMonitor:
             while True:
                 try:
                     self._take_performance_snapshot()
-                    self._check_quality_thresholds()
+                    self._check_quality_alerts()
                     self._cleanup_old_data()
                     time.sleep(self.monitoring_config['snapshot_interval_minutes'] * 60)
                 except Exception as e:
@@ -743,6 +743,16 @@ class QualityMonitor:
         health_score = (quality_factor * 0.5 + error_factor * 0.3 + throughput_factor * 0.2)
         
         return min(1.0, max(0.0, health_score))
+    
+    def get_processing_stats(self) -> Dict[str, Any]:
+        """Получение статистики обработки"""
+        return {
+            'total_dialogs_processed': len(self.metrics_history),
+            'avg_quality_score': np.mean([m.value for m in self.metrics_history if m.name == 'quality_score']) if self.metrics_history else 0,
+            'active_alerts': len([a for a in self.alerts if not a.resolved]),
+            'system_health': self._get_system_health_score(),
+            'performance_snapshots': len(self.performance_snapshots)
+        }
 
 # Пример использования
 if __name__ == "__main__":

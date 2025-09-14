@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "properties": {
+    "dialog_id": {"type": ["string","number"]},
+    "turn_id": {"type": "integer", "minimum": 0},
+    "theme": {"type": "string"},
+    "subtheme": {"type": "string", "maxLength": 40},
+    "label_type": {"type": "string", "enum": ["барьер","идея","сигнал","похвала"]},
+    "text_quote": {"type": "string", "minLength": 1},
+    "delivery_type": {"type": ["string","null"]},
+    "cause_hint": {"type": ["string","null"]},
+    "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+  },
+  "required": ["dialog_id","turn_id","theme","subtheme","label_type","text_quote","confidence"],
+  "additionalProperties": false
+}

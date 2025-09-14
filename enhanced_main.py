@@ -37,11 +37,25 @@ def load_dialogs_from_file(file_path: str) -> List[str]:
     if file_path.suffix == '.xlsx':
         # Загрузка из Excel
         df = pd.read_excel(file_path)
-        # Предполагаем, что диалоги в колонке 'dialog' или первой колонке
+        # Предполагаем, что диалоги в колонке 'dialog' или колонке с текстом
         if 'dialog' in df.columns:
             dialogs = df['dialog'].dropna().tolist()
+        elif 'Текст транскрибации' in df.columns:
+            dialogs = df['Текст транскрибации'].dropna().tolist()
         else:
-            dialogs = df.iloc[:, 0].dropna().tolist()
+            # Ищем колонку с текстом (самая длинная строка)
+            text_columns = []
+            for col in df.columns:
+                if df[col].dtype == 'object':  # Строковые колонки
+                    avg_length = df[col].astype(str).str.len().mean()
+                    text_columns.append((col, avg_length))
+            
+            if text_columns:
+                # Берем колонку с самым длинным текстом
+                text_col = max(text_columns, key=lambda x: x[1])[0]
+                dialogs = df[text_col].dropna().tolist()
+            else:
+                dialogs = df.iloc[:, 0].dropna().tolist()
     
     elif file_path.suffix == '.json':
         # Загрузка из JSON
@@ -99,7 +113,7 @@ def load_config(config_path: str) -> Dict[str, Any]:
 async def main():
     """Главная функция"""
     parser = argparse.ArgumentParser(description='Enhanced Dialogs RAG System')
-    parser.add_argument('--input', '-i', required=True, help='Путь к файлу с диалогами')
+    parser.add_argument('--input', '-i', help='Путь к файлу с диалогами')
     parser.add_argument('--output', '-o', default='enhanced_results', help='Директория для результатов')
     parser.add_argument('--config', '-c', help='Путь к файлу конфигурации')
     parser.add_argument('--quality-threshold', type=float, default=0.7, help='Порог качества (0.0-1.0)')
@@ -121,6 +135,12 @@ async def main():
         config = create_default_config()
         save_config(config, args.create_config)
         print(f"Конфигурация сохранена в {args.create_config}")
+        return
+    
+    # Проверка обязательных параметров для обработки
+    if not args.input:
+        print("Ошибка: требуется указать --input для обработки диалогов")
+        print("Используйте --help для получения справки")
         return
     
     # Загрузка конфигурации

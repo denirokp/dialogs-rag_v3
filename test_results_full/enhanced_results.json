@@ -1,0 +1,142 @@
+[
+  {
+    "dialog_id": 0,
+    "dialog": "Клиент: Здравствуйте, у меня проблема с доставкой заказа номер 12345. Менеджер: Расскажите подробнее, что именно произошло?",
+    "extracted_entities": {
+      "problems": [],
+      "ideas": [],
+      "barriers": [],
+      "quotes": []
+    },
+    "quality_score": 0.0,
+    "prompt_variant": "contextual",
+    "processing_timestamp": "2025-09-14T04:45:14.884164",
+    "corrections_applied": []
+  },
+  {
+    "dialog_id": 1,
+    "dialog": "Угу. Угу угу угу. Угу. Угу. Угу, ну угу",
+    "extracted_entities": {
+      "problems": [],
+      "ideas": [],
+      "barriers": [],
+      "quotes": []
+    },
+    "quality_score": 0.0,
+    "prompt_variant": "detailed",
+    "processing_timestamp": "2025-09-14T04:45:14.885178",
+    "corrections_applied": []
+  },
+  {
+    "dialog_id": 2,
+    "dialog": "Клиент: Доставка задерживается на 2 часа. Менеджер: Извините за неудобства, курьер в пути.",
+    "extracted_entities": {
+      "problems": [],
+      "ideas": [],
+      "barriers": [],
+      "quotes": []
+    },
+    "quality_score": 0.0,
+    "prompt_variant": "base",
+    "processing_timestamp": "2025-09-14T04:45:14.886022",
+    "corrections_applied": []
+  },
+  {
+    "dialog_id": 3,
+    "dialog": "Клиент: Предлагаю улучшить систему уведомлений. Менеджер: Отличная идея, передам в разработку.",
+    "extracted_entities": {
+      "problems": [],
+      "ideas": [],
+      "barriers": [],
+      "quotes": []
+    },
+    "quality_score": 0.0,
+    "prompt_variant": "base",
+    "processing_timestamp": "2025-09-14T04:45:14.887020",
+    "corrections_applied": []
+  },
+  {
+    "dialog_id": 4,
+    "dialog": "Клиент: Курьер не смог найти адрес. Менеджер: Давайте уточним адрес и отправим повторно.",
+    "extracted_entities": {
+      "problems": [],
+      "ideas": [],
+      "barriers": [],
+      "quotes": []
+    },
+    "quality_score": 0.0,
+    "prompt_variant": "detailed",
+    "processing_timestamp": "2025-09-14T04:45:14.887942",
+    "corrections_applied": []
+  },
+  {
+    "dialog_id": 5,
+    "dialog": "Да",
+    "extracted_entities": {
+      "problems": [],
+      "ideas": [],
+      "barriers": [],
+      "quotes": []
+    },
+    "quality_score": 0.0,
+    "prompt_variant": "detailed",
+    "processing_timestamp": "2025-09-14T04:45:14.889389",
+    "corrections_applied": []
+  },
+  {
+    "dialog_id": 6,
+    "dialog": "Клиент: Хочу оставить отзыв о качестве сервиса. Менеджер: С удовольствием выслушаю ваше мнение.",
+    "extracted_entities": {
+      "problems": [],
+      "ideas": [],
+      "barriers": [],
+      "quotes": []
+    },
+    "quality_score": 0.0,
+    "prompt_variant": "base",
+    "processing_timestamp": "2025-09-14T04:45:14.890794",
+    "corrections_applied": []
+  },
+  {
+    "dialog_id": 7,
+    "dialog": "Хм, не знаю",
+    "extracted_entities": {
+      "problems": [],
+      "ideas": [],
+      "barriers": [],
+      "quotes": []
+    },
+    "quality_score": 0.0,
+    "prompt_variant": "base",
+    "processing_timestamp": "2025-09-14T04:45:14.891908",
+    "corrections_applied": []
+  },
+  {
+    "dialog_id": 8,
+    "dialog": "Клиент: Есть ли возможность доставить заказ в выходные? Менеджер: Да, мы работаем и в выходные дни.",
+    "extracted_entities": {
+      "problems": [],
+      "ideas": [],
+      "barriers": [],
+      "quotes": []
+    },
+    "quality_score": 0.0,
+    "prompt_variant": "contextual",
+    "processing_timestamp": "2025-09-14T04:45:14.892878",
+    "corrections_applied": []
+  },
+  {
+    "dialog_id": 9,
+    "dialog": "Клиент: Спасибо за быструю доставку! Менеджер: Рады, что смогли помочь.",
+    "extracted_entities": {
+      "problems": [],
+      "ideas": [],
+      "barriers": [],
+      "quotes": []
+    },
+    "quality_score": 0.0,
+    "prompt_variant": "base",
+    "processing_timestamp": "2025-09-14T04:45:14.893663",
+    "corrections_applied": []
+  }
+]
