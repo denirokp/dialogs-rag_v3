@@ -1,0 +1,49 @@
+version: 1
+signals:
+  - id: positive_satisfaction
+    title: Положительная реакция — довольны сервисом
+    match:
+      - {theme: "позитив", subtheme: "довольны сервисом"}
+      - {theme: "позитив", subtheme: "хорошо работает"}
+      - {theme: "позитив", subtheme: "рекомендую"}
+      - {theme: "позитив", subtheme: "удобно пользоваться"}
+
+  - id: negative_frustration
+    title: Негативная реакция — разочарованы
+    match:
+      - {theme: "негатив", subtheme: "разочарованы"}
+      - {theme: "негатив", subtheme: "не работает как ожидалось"}
+      - {theme: "негатив", subtheme: "плохой сервис"}
+      - {theme: "негатив", subtheme: "не рекомендую"}
+
+  - id: neutral_inquiry
+    title: Нейтральная реакция — вопросы и уточнения
+    match:
+      - {theme: "нейтраль", subtheme: "вопросы по использованию"}
+      - {theme: "нейтраль", subtheme: "уточнения по функциям"}
+      - {theme: "нейтраль", subtheme: "интерес к возможностям"}
+      - {theme: "нейтраль", subtheme: "изучение интерфейса"}
+
+  - id: urgency_high
+    title: Высокая срочность — нужно срочно решить
+    match:
+      - {theme: "срочность", subtheme: "нужно срочно"}
+      - {theme: "срочность", subtheme: "критично важно"}
+      - {theme: "срочность", subtheme: "не могу ждать"}
+      - {theme: "срочность", subtheme: "блокирует работу"}
+
+  - id: confusion_interface
+    title: Путаница в интерфейсе — не понимают как пользоваться
+    match:
+      - {theme: "путаница", subtheme: "не понимаю интерфейс"}
+      - {theme: "путаница", subtheme: "сложно разобраться"}
+      - {theme: "путаница", subtheme: "не знаю где искать"}
+      - {theme: "путаница", subtheme: "запутанные настройки"}
+
+  - id: expectation_mismatch
+    title: Несоответствие ожиданиям — не то что ожидали
+    match:
+      - {theme: "ожидания", subtheme: "не то что ожидал"}
+      - {theme: "ожидания", subtheme: "работает по-другому"}
+      - {theme: "ожидания", subtheme: "не соответствует описанию"}
+      - {theme: "ожидания", subtheme: "другая функциональность"}

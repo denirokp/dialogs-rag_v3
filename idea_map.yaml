@@ -1,0 +1,50 @@
+version: 1
+ideas:
+  - id: delivery_expand
+    title: Расширить доставку на больше товаров
+    match:
+      - {theme: "доставка", subtheme: "расширить на больше товаров"}
+      - {theme: "доставка", subtheme: "добавить новые регионы"}
+      - {theme: "доставка", subtheme: "улучшить покрытие"}
+
+  - id: ui_improve
+    title: Улучшить интерфейс и настройки
+    match:
+      - {theme: "UI/настройки", subtheme: "улучшить интерфейс"}
+      - {theme: "UI/настройки", subtheme: "сделать проще"}
+      - {theme: "UI/настройки", subtheme: "добавить функции"}
+
+  - id: support_enhance
+    title: Улучшить поддержку клиентов
+    match:
+      - {theme: "поддержка", subtheme: "улучшить поддержку"}
+      - {theme: "поддержка", subtheme: "быстрее отвечать"}
+      - {theme: "поддержка", subtheme: "добавить каналы связи"}
+
+  - id: pricing_optimize
+    title: Оптимизировать цены и продвижение
+    match:
+      - {theme: "цены", subtheme: "сделать дешевле"}
+      - {theme: "продвижение", subtheme: "улучшить таргетинг"}
+      - {theme: "продвижение", subtheme: "снизить стоимость"}
+
+  - id: logistics_speed
+    title: Ускорить доставку и логистику
+    match:
+      - {theme: "логистика/сроки", subtheme: "ускорить доставку"}
+      - {theme: "логистика/сроки", subtheme: "улучшить маршруты"}
+      - {theme: "логистика/сроки", subtheme: "добавить экспресс"}
+
+  - id: assortment_expand
+    title: Расширить ассортимент товаров
+    match:
+      - {theme: "ассортимент", subtheme: "добавить товары"}
+      - {theme: "ассортимент", subtheme: "расширить категории"}
+      - {theme: "ассортимент", subtheme: "обновить каталог"}
+
+  - id: payment_improve
+    title: Улучшить систему оплаты и возвратов
+    match:
+      - {theme: "оплата/возвраты", subtheme: "упростить оплату"}
+      - {theme: "оплата/возвраты", subtheme: "улучшить возвраты"}
+      - {theme: "оплата/возвраты", subtheme: "добавить способы оплаты"}

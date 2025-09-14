@@ -1,10 +1,10 @@
 {
   "dialogs": 84,
-  "mentions": 340,
-  "problems": 260,
-  "ideas": 41,
-  "signals": 39,
+  "mentions": 330,
+  "problems": 263,
+  "ideas": 40,
+  "signals": 27,
   "evidence_100": true,
   "dedup_removed_pct": 0.0,
-  "ambiguity_pct": 3.2
+  "ambiguity_pct": 0.9
 }
