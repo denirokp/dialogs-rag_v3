@@ -5,10 +5,15 @@ import yaml
 from pathlib import Path
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 
 class OpenAIConfig(BaseModel):
     """OpenAI API configuration"""
+    api_key: str = os.getenv("OPENAI_API_KEY", "")
     model: str = "gpt-4"
     temperature: float = 0.1
     max_tokens: int = 4000
