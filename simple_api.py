@@ -1,28 +1,13 @@
-#!/usr/bin/env python3
-"""
-Simple API для демонстрации результатов анализа диалогов
-"""
-
-from fastapi import FastAPI, HTTPException
+# -*- coding: utf-8 -*-
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import json
-import os
 from pathlib import Path
-from typing import Dict, Any, List, Optional
-import logging
+import json
+import pandas as pd
 
-# Настройка логирования
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+app = FastAPI(title="DialogsRAG API", version="2.0")
 
-# Создание приложения
-app = FastAPI(
-    title="Dialogs Analysis API",
-    description="API для анализа диалогов",
-    version="1.0.0"
-)
-
-# CORS middleware
+# CORS на всякий случай
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -31,174 +16,90 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Загрузка данных
-def load_analysis_data():
-    """Загрузка данных анализа"""
-    try:
-        # Загружаем comprehensive results
-        with open("artifacts/comprehensive_results.json", "r", encoding="utf-8") as f:
-            comprehensive_data = json.load(f)
-        
-        # Загружаем aggregate results
-        with open("artifacts/aggregate_results.json", "r", encoding="utf-8") as f:
-            aggregate_data = json.load(f)
-        
-        # Загружаем statistics
-        with open("artifacts/statistics.json", "r", encoding="utf-8") as f:
-            statistics_data = json.load(f)
-        
-        return {
-            "comprehensive": comprehensive_data,
-            "aggregate": aggregate_data,
-            "statistics": statistics_data
-        }
-    except Exception as e:
-        logger.error(f"Ошибка загрузки данных: {e}")
-        return None
+ART = Path("artifacts")
+RES_PATH = ART / "comprehensive_results.json"
+STATS_PATH = ART / "statistics.json"
 
-# Кэшируем данные
-analysis_data = load_analysis_data()
+# ---------- helpers ----------
+def read_mentions():
+    if not RES_PATH.exists():
+        return []
+    js = json.loads(RES_PATH.read_text(encoding="utf-8"))
+    return js.get("mentions", [])
 
-@app.get("/")
-async def root():
-    """Корневой endpoint"""
-    return {
-        "message": "Dialogs Analysis API",
-        "version": "1.0.0",
-        "status": "running"
-    }
-
-@app.get("/api/health")
-async def health_check():
-    """Проверка здоровья API"""
-    return {
-        "status": "healthy",
-        "data_loaded": analysis_data is not None,
-        "timestamp": "2025-09-14T16:58:00Z"
-    }
-
+# ---------- base endpoints ----------
 @app.get("/api/statistics")
-async def get_statistics():
-    """Получение общей статистики"""
-    if not analysis_data:
-        raise HTTPException(status_code=500, detail="Данные не загружены")
-    
-    stats = analysis_data["statistics"]
+def statistics():
+    if not STATS_PATH.exists():
+        return {}
+    return json.loads(STATS_PATH.read_text(encoding="utf-8"))
+
+@app.get("/api/mentions")
+def mentions(limit: int = 1000, offset: int = 0, label_type: str | None = None):
+    arr = read_mentions()
+    if label_type:
+        arr = [m for m in arr if m.get("label_type") == label_type]
     return {
-        "total_dialogs": stats.get("total_dialogs", 0),
-        "total_entities": stats.get("total_entities", 0),
-        "success_rate": stats.get("success_rate", 0),
-        "quality_score": stats.get("quality_score", 0),
-        "business_relevance": stats.get("business_relevance", 0),
-        "actionability": stats.get("actionability", 0)
+        "total": len(arr),
+        "items": arr[offset: offset + limit]
     }
+
+@app.get("/api/summary_themes")
+def summary_themes():
+    df = pd.DataFrame(read_mentions())
+    if df.empty:
+        return {"by_label": []}
+    grp = (
+        df.groupby(["label_type", "theme", "subtheme"])
+          .agg(mentions=("text_quote", "count"), dialogs=("dialog_id", "nunique"))
+          .reset_index()
+    )
+    return {"by_label": grp.to_dict(orient="records")}
 
 @app.get("/api/problems")
-async def get_problems():
-    """Получение списка проблем"""
-    if not analysis_data:
-        raise HTTPException(status_code=500, detail="Данные не загружены")
-    
-    aggregate = analysis_data["aggregate"]
-    problems = aggregate.get("barriers", [])
-    
-    return {
-        "total_problems": len(problems),
-        "problems": problems[:50]  # Первые 50 проблем
-    }
+def problems():
+    df = pd.DataFrame(read_mentions())
+    if df.empty:
+        return {"items": []}
+    return {"items": df[df["label_type"] == "problems"].to_dict(orient="records")}
 
 @app.get("/api/ideas")
-async def get_ideas():
-    """Получение списка идей"""
-    if not analysis_data:
-        raise HTTPException(status_code=500, detail="Данные не загружены")
-    
-    aggregate = analysis_data["aggregate"]
-    ideas = aggregate.get("ideas", [])
-    
-    return {
-        "total_ideas": len(ideas),
-        "ideas": ideas[:50]  # Первые 50 идей
-    }
+def ideas():
+    df = pd.DataFrame(read_mentions())
+    if df.empty:
+        return {"items": []}
+    return {"items": df[df["label_type"] == "ideas"].to_dict(orient="records")}
 
 @app.get("/api/signals")
-async def get_signals():
-    """Получение списка сигналов"""
-    if not analysis_data:
-        raise HTTPException(status_code=500, detail="Данные не загружены")
-    
-    aggregate = analysis_data["aggregate"]
-    signals = aggregate.get("signals", [])
-    
-    return {
-        "total_signals": len(signals),
-        "signals": signals[:50]  # Первые 50 сигналов
-    }
+def signals():
+    df = pd.DataFrame(read_mentions())
+    if df.empty:
+        return {"items": []}
+    return {"items": df[df["label_type"] == "signals"].to_dict(orient="records")}
 
-@app.get("/api/delivery_analysis")
-async def get_delivery_analysis():
-    """Анализ доставки"""
-    if not analysis_data:
-        raise HTTPException(status_code=500, detail="Данные не загружены")
-    
-    aggregate = analysis_data["aggregate"]
-    delivery_data = aggregate.get("delivery_analysis", {})
-    
-    return {
-        "delivery_mentioned": delivery_data.get("delivery_mentioned", 0),
-        "delivery_issues": delivery_data.get("delivery_issues", []),
-        "delivery_services": delivery_data.get("delivery_services", [])
-    }
+@app.post("/api/reload")
+def reload_data():
+    # Источник — файлы, поэтому reload по сути no-op, но оставим для совместимости
+    return {"status": "ok"}
 
-@app.get("/api/dialog/{dialog_id}")
-async def get_dialog(dialog_id: int):
-    """Получение конкретного диалога"""
-    if not analysis_data:
-        raise HTTPException(status_code=500, detail="Данные не загружены")
-    
-    comprehensive = analysis_data["comprehensive"]
-    dialog_results = comprehensive.get("dialog_results", [])
-    
-    for dialog in dialog_results:
-        if dialog.get("dialog_id") == dialog_id:
-            return dialog
-    
-    raise HTTPException(status_code=404, detail="Диалог не найден")
+# ---------- consolidation endpoints ----------
+@app.get("/api/problems_consolidated")
+def problems_consolidated():
+    ps = ART / "problems_summary.csv"
+    sub = ART / "problems_subthemes.csv"
+    if not ps.exists():
+        return {"summary": [], "subthemes": []}
+    ps_df = pd.read_csv(ps)
+    sub_df = pd.read_csv(sub) if sub.exists() else pd.DataFrame()
+    return {"summary": ps_df.to_dict(orient="records"),
+            "subthemes": sub_df.to_dict(orient="records")}
 
-@app.get("/api/search")
-async def search_entities(query: str, entity_type: str = "all"):
-    """Поиск по сущностям"""
-    if not analysis_data:
-        raise HTTPException(status_code=500, detail="Данные не загружены")
-    
-    aggregate = analysis_data["aggregate"]
-    results = []
-    
-    if entity_type in ["all", "problems"]:
-        problems = aggregate.get("barriers", [])
-        for problem in problems:
-            if query.lower() in problem.get("text", "").lower():
-                results.append({"type": "problem", "data": problem})
-    
-    if entity_type in ["all", "ideas"]:
-        ideas = aggregate.get("ideas", [])
-        for idea in ideas:
-            if query.lower() in idea.get("text", "").lower():
-                results.append({"type": "idea", "data": idea})
-    
-    if entity_type in ["all", "signals"]:
-        signals = aggregate.get("signals", [])
-        for signal in signals:
-            if query.lower() in signal.get("text", "").lower():
-                results.append({"type": "signal", "data": signal})
-    
-    return {
-        "query": query,
-        "entity_type": entity_type,
-        "total_results": len(results),
-        "results": results[:20]  # Первые 20 результатов
-    }
+@app.get("/api/problem_cards")
+def problem_cards():
+    p = ART / "problem_cards.jsonl"
+    if not p.exists():
+        return {"cards": []}
+    cards = [json.loads(line) for line in p.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return {"cards": cards}
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# uvicorn simple_api:app --port 8000

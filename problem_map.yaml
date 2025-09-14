@@ -1,0 +1,42 @@
+version: 1
+problems:
+  - id: delivery_partial
+    title: Доставка — работает выборочно/не на всех товарах
+    match:
+      - {theme: "доставка", subtheme: "не работает выборочно"}
+      - {theme: "UI/настройки", subtheme: "работает выборочно"}
+      - {theme: "доставка", subtheme: "не удаётся настроить"}
+
+  - id: promo_not_profitable
+    title: Продвижение — не окупается / высокая стоимость
+    match:
+      - {theme: "продвижение", subtheme: "не окупается"}
+      - {theme: "продвижение", subtheme: "высокая стоимость"}
+      - {theme: "цены", subtheme: "дорого для категории"}
+
+  - id: support_no_help
+    title: Поддержка — обращался, не помогло/долго
+    match:
+      - {theme: "поддержка", subtheme: "обращался — не помогло"}
+      - {theme: "поддержка", subtheme: "долго ждать"}
+
+  - id: ui_confusing
+    title: UI/настройки — непонятный интерфейс
+    match:
+      - {theme: "UI/настройки", subtheme: "непонятный интерфейс"}
+
+  - id: demand_low
+    title: Низкий спрос / мало обращений
+    match:
+      - {theme: "продвижение", subtheme: "много просмотров, мало запросов"}
+      - {theme: "ассортимент", subtheme: "несезонность"}
+
+  - id: logistics_slow
+    title: Логистика — долго в пути
+    match:
+      - {theme: "логистика/сроки", subtheme: "долго в пути"}
+
+  - id: returns_24h_confusion
+    title: Возвраты — непонимание механики 24 часа
+    match:
+      - {theme: "оплата/возвраты", subtheme: "возврат 24 часа"}
