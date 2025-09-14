@@ -11,7 +11,7 @@ LLM-based анализатор (интегрирован под текущую �
 Требуется: OPENAI_API_KEY; pip install -r requirements.txt
 """
 
-import os, re, json, math, hashlib, argparse
+import os, re, json, math, hashlib, argparse, time
 import httpx, pandas as pd, yaml
 from pathlib import Path
 from typing import List, Dict, Any
@@ -115,21 +115,45 @@ class LLM:
                 {"role": "user", "content": user},
             ],
         }
-        r = self.client.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {self.key}",
-                "Content-Type": "application/json",
-            },
-            json=payload,
-        )
-        r.raise_for_status()
-        content = r.json()["choices"][0]["message"]["content"]
+        # --- network call with retries ---
+        r = None
+        for attempt in range(3):
+            try:
+                r = self.client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.key}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                )
+                r.raise_for_status()
+                break
+            except httpx.RequestError as e:
+                wait = 2 ** attempt
+                print(
+                    f"[warn] HTTP error for dialog {dialog_id} window {window.get('window_id')} (attempt {attempt+1}/3): {e}"
+                )
+                if attempt == 2:
+                    return []
+                time.sleep(wait)
+
+        try:
+            content = r.json()["choices"][0]["message"]["content"]
+        except (json.JSONDecodeError, KeyError, IndexError) as e:
+            print(
+                f"[error] failed to read response JSON for dialog {dialog_id} window {window.get('window_id')}: {e}"
+            )
+            return []
+
         try:
             js = json.loads(content)
             arr = js.get("mentions", [])
-        except Exception:
-            arr = []
+        except json.JSONDecodeError as e:
+            print(
+                f"[error] JSON decode error for dialog {dialog_id} window {window.get('window_id')}: {e}"
+            )
+            return []
         out = []
         for m in arr:
             if not isinstance(m, dict):
