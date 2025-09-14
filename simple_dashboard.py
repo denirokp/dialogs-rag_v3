@@ -36,6 +36,9 @@ def load_stats() -> dict:
 
 # ---------- UI: sidebar ----------
 st.sidebar.header("Фильтры")
+reload_btn = st.sidebar.button("Reload")
+if reload_btn:
+    st.cache_data.clear()
 df = load_mentions()
 stats = load_stats()
 
