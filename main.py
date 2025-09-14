@@ -2,7 +2,18 @@
 import subprocess, sys
 
 steps = [
-    [sys.executable, "analyze_dialogs_advanced.py", "--model", "gpt-4o-mini", "--whole_max", "8000", "--window_tokens", "1800"],
+    [
+        sys.executable,
+        "analyze_dialogs_advanced.py",
+        "--model",
+        "gpt-4o-mini",
+        "--whole_max",
+        "8000",
+        "--window_tokens",
+        "1800",
+        "--input_xlsx",
+        "data/input/dialogs14_09.xlsx",
+    ],
     [sys.executable, "consolidate_and_summarize.py"],
 ]
 
