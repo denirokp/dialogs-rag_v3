@@ -16,10 +16,22 @@ st.set_page_config(page_title="DialogsRAG — панель разговоров"
 ART = Path("artifacts")
 RES_PATH = ART / "comprehensive_results.json"
 STATS_PATH = ART / "statistics.json"
+
+# Проблемы (консолидация)
 PM_SUM = ART / "problems_summary.csv"
 PM_SUB = ART / "problems_subthemes.csv"
 PM_IDX = ART / "problems_mentions.csv"
 PM_CARDS = ART / "problem_cards.jsonl"
+# Идеи (консолидация)
+ID_SUM = ART / "ideas_summary.csv"
+ID_SUB = ART / "ideas_subthemes.csv"
+ID_IDX = ART / "ideas_mentions.csv"
+ID_CARDS = ART / "idea_cards.jsonl"
+# Сигналы (консолидация)
+SG_SUM = ART / "signals_summary.csv"
+SG_SUB = ART / "signals_subthemes.csv"
+SG_IDX = ART / "signals_mentions.csv"
+SG_CARDS = ART / "signal_cards.jsonl"
 
 PALETTE = {"problems": "#e74c3c", "ideas": "#f1c40f", "signals": "#3498db"}
 
@@ -64,17 +76,23 @@ def load_stats() -> dict:
 
 
 @st.cache_data(show_spinner=False)
-def load_problems_artifacts():
-    ps = pd.read_csv(PM_SUM) if PM_SUM.exists() else pd.DataFrame()
-    sub = pd.read_csv(PM_SUB) if PM_SUB.exists() else pd.DataFrame()
-    idx = pd.read_csv(PM_IDX) if PM_IDX.exists() else pd.DataFrame()
-    cards = pd.read_json(PM_CARDS, lines=True) if PM_CARDS.exists() else pd.DataFrame()
-    return ps, sub, idx, cards
+def load_artifacts(prefix: str):
+    # Возвращает (summary, subthemes, mentions_idx, cards_df)
+    paths = {
+        "problems": (PM_SUM, PM_SUB, PM_IDX, PM_CARDS),
+        "ideas": (ID_SUM, ID_SUB, ID_IDX, ID_CARDS),
+        "signals": (SG_SUM, SG_SUB, SG_IDX, SG_CARDS),
+    }[prefix]
+    sum_df = pd.read_csv(paths[0]) if paths[0].exists() else pd.DataFrame()
+    sub_df = pd.read_csv(paths[1]) if paths[1].exists() else pd.DataFrame()
+    idx_df = pd.read_csv(paths[2]) if paths[2].exists() else pd.DataFrame()
+    cards_df = pd.read_json(paths[3], lines=True) if paths[3].exists() else pd.DataFrame()
+    return sum_df, sub_df, idx_df, cards_df
 
 
 def file_hash() -> str:
     parts = []
-    for p in [RES_PATH, STATS_PATH, PM_SUM, PM_SUB, PM_IDX, PM_CARDS]:
+    for p in [RES_PATH, STATS_PATH, PM_SUM, PM_SUB, PM_IDX, PM_CARDS, ID_SUM, ID_SUB, ID_IDX, ID_CARDS, SG_SUM, SG_SUB, SG_IDX, SG_CARDS]:
         if p.exists():
             parts.append(f"{p.name}:{int(p.stat().st_mtime)}:{p.stat().st_size}")
     return str(hash("|".join(parts)))
@@ -120,7 +138,6 @@ def prettify_table(df: pd.DataFrame) -> pd.DataFrame:
 qparams = _get_query_params()
 df = load_mentions()
 stats = load_stats()
-ps, sub_idx, idx_idx, cards = load_problems_artifacts()
 
 # автоперезагрузка при изменении артефактов
 sig = file_hash()
@@ -226,6 +243,8 @@ st.caption(
     tab_ideas_raw,
     tab_signals_raw,
     tab_problems_cons,
+    tab_ideas_cons,
+    tab_signals_cons,
     tab_links,
     tab_quality,
 ) = st.tabs([
@@ -234,6 +253,8 @@ st.caption(
     "Идеи — список",
     "Сигналы — список",
     "Сводка по проблемам",
+    "Сводка по идеям",
+    "Сводка по сигналам",
     "Связи тем",
     "Качество распознавания",
 ])
@@ -362,37 +383,43 @@ with tab_problems_raw: render_raw(df_f, "problems")
 with tab_ideas_raw:    render_raw(df_f, "ideas")
 with tab_signals_raw:  render_raw(df_f, "signals")
 
-# ===== Консолидация проблем =====
-with tab_problems_cons:
-    st.header("Сводка по проблемам")
-    st.info("""
-    **Зачем эта вкладка:** мы объединяем похожие формулировки в укрупнённые проблемы. 
+# ===== Консолидация =====
+
+def render_consolidation(prefix: str, title: str, icon: str):
+    st.header(f"{icon} {title}")
+    st.info(f"""
+    **Зачем эта вкладка:** мы объединяем похожие формулировки в укрупнённые {title.lower()}. 
     Ниже видно, какие из них встречаются чаще всего и из каких подтем они складываются.
     """)
-    if not PM_SUM.exists():
-        st.warning("Нет artifacts/problems_summary.csv — запустите consolidate_and_summarize.py")
+    
+    sum_path = {
+        "problems": PM_SUM, "ideas": ID_SUM, "signals": SG_SUM
+    }[prefix]
+    
+    if not sum_path.exists():
+        st.warning(f"Нет artifacts/{prefix}_summary.csv — запустите consolidate_and_summarize.py")
     else:
-        ps, sub, idx, cards = load_problems_artifacts()
-        st.subheader("Таблица по всем проблемам")
-        st.caption("Звонки — в скольких разговорах всплывала проблема. Фразы — сколько цитат внутри них.")
-        st.dataframe(ps, use_container_width=True)
+        sum_df, sub_df, idx_df, cards_df = load_artifacts(prefix)
+        st.subheader(f"Таблица по всем {title.lower()}")
+        st.caption("Звонки — в скольких разговорах всплывала тема. Фразы — сколько цитат внутри них.")
+        st.dataframe(sum_df, use_container_width=True)
         
         st.subheader("Какие 20% дают 80% охвата (Pareto)")
         st.caption("Столбики — звонки, линия — накопленная доля звонков, %.")
-        d = ps.sort_values("dialogs", ascending=False).copy()
+        d = sum_df.sort_values("dialogs", ascending=False).copy()
         d["cum_share"] = (d["dialogs"].cumsum() / max(1, d["dialogs"].sum()) * 100).round(1)
         fig = make_subplots(specs=[[{"secondary_y": True}]])
         fig.add_trace(go.Bar(x=d["problem_title"], y=d["dialogs"], name="Звонки"), secondary_y=False)
         fig.add_trace(go.Scatter(x=d["problem_title"], y=d["cum_share"], name="Накопл. доля, %", mode="lines+markers"), secondary_y=True)
-        fig.update_layout(title_text="Pareto: разговоры по проблемам", xaxis_tickangle=30)
+        fig.update_layout(title_text=f"Pareto: разговоры по {title.lower()}", xaxis_tickangle=30)
         fig.update_yaxes(title_text="Звонки", secondary_y=False)
         fig.update_yaxes(title_text="Доля, %", secondary_y=True, range=[0, 100])
         st.plotly_chart(fig, use_container_width=True)
 
-        st.subheader("Как подтемы перетекают в проблему (Sankey)")
-        st.caption("Толстая линия = больше разговоров. Слева — подтемы, справа — укрупнённая проблема.")
-        if not idx.empty:
-            g = idx.groupby(["theme","subtheme","problem_id","problem_title"])['dialog_id'].nunique().reset_index(name="dialogs")
+        st.subheader("Как подтемы перетекают в тему (Sankey)")
+        st.caption("Толстая линия = больше разговоров. Слева — подтемы, справа — укрупнённая тема.")
+        if not idx_df.empty:
+            g = idx_df.groupby(["theme","subtheme","problem_id","problem_title"])['dialog_id'].nunique().reset_index(name="dialogs")
             subs = g.apply(lambda r: f"{r['theme']} / {r['subtheme']}", axis=1).unique().tolist()
             probs = g["problem_title"].unique().tolist()
             nodes = subs + probs
@@ -406,29 +433,29 @@ with tab_problems_cons:
             st.info("Нет индекса цитат для Sankey.")
 
         st.subheader("Насколько хорошо покрыта карта соответствий (Heatmap)")
-        st.caption("Где ячейка пустая — карту можно обогатить (подтема ещё не привязана к проблеме).")
-        if not idx.empty:
-            cov = idx.groupby(["theme","problem_title"])['dialog_id'].nunique().reset_index(name="dialogs")
+        st.caption("Где ячейка пустая — карту можно обогатить (подтема ещё не привязана к теме).")
+        if not idx_df.empty:
+            cov = idx_df.groupby(["theme","problem_title"])['dialog_id'].nunique().reset_index(name="dialogs")
             pivot = cov.pivot(index="theme", columns="problem_title", values="dialogs").fillna(0)
             fig = px.imshow(pivot, aspect="auto", color_continuous_scale="Blues", origin="lower")
             st.plotly_chart(fig, use_container_width=True)
         
-        if not ps.empty and (ps["problem_id"]=="other_unmapped").any():
-            unm = ps[ps["problem_id"]=="other_unmapped"].iloc[0]
+        if not sum_df.empty and (sum_df["problem_id"]=="other_unmapped").any():
+            unm = sum_df[sum_df["problem_id"]=="other_unmapped"].iloc[0]
             st.warning(f"Прочее/не сконсолидировано: {unm['share_dialogs_pct']}% звонков · {int(unm['mentions'])} фраз.")
-            if not idx.empty:
-                cand = (idx[idx["problem_id"]=="other_unmapped"]
+            if not idx_df.empty:
+                cand = (idx_df[idx_df["problem_id"]=="other_unmapped"]
                         .groupby(["theme","subtheme"])['dialog_id'].nunique().reset_index(name="dialogs")
                         .sort_values("dialogs", ascending=False).head(15))
-                st.caption("Это подсказки, что добавить в карту соответствий (problem_map.yaml).")
+                st.caption("Это подсказки, что добавить в карту соответствий.")
                 st.dataframe(cand, use_container_width=True)
         
-        st.subheader("Карточки проблем — человеческим языком")
-        for _, row in ps.sort_values("dialogs", ascending=False).iterrows():
-            pid, title = row["problem_id"], row["problem_title"]
-            with st.expander(f"{title} — {int(row['mentions'])} фраз · {int(row['dialogs'])} звонков ({row['share_dialogs_pct']}%)"):
-                if not cards.empty and pid in set(cards.get("problem_id", pd.Series()).values):
-                    js = cards[cards["problem_id"] == pid].iloc[0]
+        st.subheader(f"Карточки {title.lower()} — человеческим языком")
+        for _, row in sum_df.sort_values("dialogs", ascending=False).iterrows():
+            pid, title_text = row["problem_id"], row["problem_title"]
+            with st.expander(f"{title_text} — {int(row['mentions'])} фраз · {int(row['dialogs'])} звонков ({row['share_dialogs_pct']}%)"):
+                if not cards_df.empty and pid in set(cards_df.get("problem_id", pd.Series()).values):
+                    js = cards_df[cards_df["problem_id"] == pid].iloc[0]
                     st.markdown(f"**О чём речь.** {js.get('definition','')}")
                     st.markdown(f"**Почему это важно.** {js.get('why_it_matters','')}")
                     motifs = js.get("common_motifs", [])
@@ -436,15 +463,19 @@ with tab_problems_cons:
                         try: motifs = json.loads(motifs)
                         except Exception: motifs = [motifs]
                     if motifs: st.markdown("**Частые мотивы:** " + ", ".join(motifs))
-                if not sub.empty:
+                if not sub_df.empty:
                     st.markdown("**Подтемы (топ):**")
-                    st.dataframe(sub[sub["problem_id"] == pid].head(10), use_container_width=True)
-                if not idx.empty:
+                    st.dataframe(sub_df[sub_df["problem_id"] == pid].head(10), use_container_width=True)
+                if not idx_df.empty:
                     st.markdown("**Примеры фраз:**")
                     cols = ["dialog_id","turn_id","theme","subtheme","text_quote","confidence"]
-                    st.dataframe(prettify_table(idx[idx["problem_id"] == pid][cols]).rename(columns={"ID звонка":"dialog_id"}),
+                    st.dataframe(prettify_table(idx_df[idx_df["problem_id"] == pid][cols]).rename(columns={"ID звонка":"dialog_id"}),
                                  use_container_width=True)
-        st.download_button("⬇️ Скачать CSV со сводкой проблем", data=to_csv_bytes(ps), file_name="problems_summary.csv", mime="text/csv")
+        st.download_button(f"⬇️ Скачать CSV со сводкой {title.lower()}", data=to_csv_bytes(sum_df), file_name=f"{prefix}_summary.csv", mime="text/csv")
+
+with tab_problems_cons: render_consolidation("problems", "Сводка по проблемам", "🚫")
+with tab_ideas_cons: render_consolidation("ideas", "Сводка по идеям", "💡")
+with tab_signals_cons: render_consolidation("signals", "Сводка по сигналам", "📊")
 
 # ===== Связи тем =====
 with tab_links:
