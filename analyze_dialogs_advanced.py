@@ -11,12 +11,13 @@ LLM-based анализатор (интегрирован под текущую �
 Требуется: OPENAI_API_KEY; pip install -r requirements.txt
 """
 
-import os, re, json, math, hashlib, argparse
+import os, re, json, math, hashlib, argparse, time
 import httpx, pandas as pd, yaml
 from pathlib import Path
 from typing import List, Dict, Any
+from tqdm import tqdm
 
-INPUT_XLSX = "data/input/dialogs14_09.xlsx"
+INPUT_XLSX = "data/input/dialogs15_09(2000).xlsx"
 ART_DIR = Path("artifacts")
 ART_DIR.mkdir(parents=True, exist_ok=True)
 RES_PATH = ART_DIR / "comprehensive_results.json"
@@ -92,7 +93,7 @@ USER_TMPL = (
 )
 
 class LLM:
-    def __init__(self, model="gpt-4o-mini", timeout=60):
+    def __init__(self, model="gpt-4o-mini", timeout=120):
         self.model = model
         self.key = os.getenv("OPENAI_API_KEY", "")
         self.client = httpx.Client(timeout=timeout)
@@ -179,22 +180,60 @@ def run(model="gpt-4o-mini", whole_max=8000, window_tokens=1800):
     df = read_dialogs(INPUT_XLSX)
     llm = LLM(model=model)
     all_mentions: List[Dict[str,Any]] = []
-    for _, row in df.iterrows():
-        dlg_id = row["dialog_id"]; turns = split_turns(row["full_text"])
-        windows = client_only_windows(
-            turns, whole_max_tokens=whole_max, window_tokens=window_tokens
-        )
-        for w in windows:
-            all_mentions.extend(llm.extract(dlg_id, w))
+    
+    total_dialogs = len(df)
+    print(f"🚀 Начинаем анализ {total_dialogs} диалогов...")
+    print(f"📊 Модель: {model}, окно: {window_tokens} токенов")
+    
+    start_time = time.time()
+    
+    # Прогресс-бар для диалогов
+    with tqdm(total=total_dialogs, desc="📞 Анализ диалогов", unit="диалог") as pbar:
+        for idx, row in df.iterrows():
+            dlg_id = row["dialog_id"]
+            turns = split_turns(row["full_text"])
+            windows = client_only_windows(
+                turns, whole_max_tokens=whole_max, window_tokens=window_tokens
+            )
+            
+            # Обрабатываем окна для текущего диалога
+            for w in windows:
+                all_mentions.extend(llm.extract(dlg_id, w))
+            
+            # Обновляем прогресс
+            pbar.update(1)
+            
+            # Показываем статистику каждые 50 диалогов
+            if (idx + 1) % 50 == 0:
+                elapsed = time.time() - start_time
+                rate = (idx + 1) / elapsed
+                eta = (total_dialogs - idx - 1) / rate if rate > 0 else 0
+                
+                pbar.set_postfix({
+                    'найдено': len(all_mentions),
+                    'скорость': f'{rate:.1f} диал/мин',
+                    'осталось': f'{eta/60:.1f} мин'
+                })
 
+    # Финальная статистика
+    total_time = time.time() - start_time
+    print(f"\n✅ Анализ завершен за {total_time/60:.1f} минут")
+    print(f"📊 Скорость: {total_dialogs/(total_time/60):.1f} диалогов/минуту")
+    
     # До дедупа
     pre_count = len(all_mentions)
+    print(f"🔍 Найдено упоминаний: {pre_count}")
+    
     all_mentions = dedup_mentions(all_mentions)
     dedup_removed_pct = round(100 * (1 - len(all_mentions) / max(1, pre_count)), 1)
     ambiguity_pct = round(
         100 * sum(1 for m in all_mentions if m.get("confidence", 0) < 0.6) / max(1, len(all_mentions)),
         1,
     )
+    
+    print(f"🧹 После дедупликации: {len(all_mentions)} упоминаний")
+    print(f"📈 Удалено дубликатов: {dedup_removed_pct}%")
+    print(f"⚠️  Низкоуверенных: {ambiguity_pct}%")
 
     # запишем артефакты
     RES_PATH.write_text(
