@@ -1,7 +1,7 @@
 pandas
 openpyxl
 pyyaml
-httpx
+httpx[http2]
 streamlit
 plotly
 fastapi
@@ -9,3 +9,5 @@ uvicorn
 streamlit-plotly-events
 xlsxwriter
 numpy
+python-dotenv
+tqdm
