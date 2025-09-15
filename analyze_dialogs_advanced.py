@@ -11,11 +11,15 @@ LLM-based анализатор (интегрирован под текущую �
 Требуется: OPENAI_API_KEY; pip install -r requirements.txt
 """
 
-import os, re, json, math, hashlib, argparse, time
+import os, re, json, math, hashlib, argparse, time, random
 import httpx, pandas as pd, yaml
 from pathlib import Path
 from typing import List, Dict, Any
 from tqdm import tqdm
+from dotenv import load_dotenv
+
+# Загружаем переменные окружения из .env файла
+load_dotenv()
 
 INPUT_XLSX = "data/input/dialogs15_09(2000).xlsx"
 ART_DIR = Path("artifacts")
@@ -23,6 +27,32 @@ ART_DIR.mkdir(parents=True, exist_ok=True)
 RES_PATH = ART_DIR / "comprehensive_results.json"
 STATS_PATH = ART_DIR / "statistics.json"
 TAX_PATH = "taxonomy.yaml"
+
+# Потоковая запись результатов
+OUT_DIR = Path("out")
+OUT_DIR.mkdir(parents=True, exist_ok=True)
+OUT_JSONL = OUT_DIR / "mentions.jsonl"
+STATE_PATH = OUT_DIR / "progress.json"
+
+# ----------------- потоковая запись и состояние -----------------
+def append_mentions(mentions):
+    if not mentions:
+        return
+    with open(OUT_JSONL, "a", encoding="utf-8") as f:
+        for m in mentions:
+            f.write(json.dumps(m, ensure_ascii=False) + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+
+def load_state():
+    if STATE_PATH.exists():
+        return json.loads(STATE_PATH.read_text(encoding="utf-8"))
+    return {}
+
+def save_state(state):
+    STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    if hasattr(os, "sync"):
+        os.sync()
 
 # ----------------- чтение, парсинг, client-only -----------------
 def read_dialogs(path: str) -> pd.DataFrame:
@@ -96,7 +126,36 @@ class LLM:
     def __init__(self, model="gpt-4o-mini", timeout=120):
         self.model = model
         self.key = os.getenv("OPENAI_API_KEY", "")
-        self.client = httpx.Client(timeout=timeout)
+        self.client = httpx.Client(
+            http2=True,
+            timeout=httpx.Timeout(connect=10.0, read=180.0, write=30.0, pool=None),
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
+
+    def _post_with_retry(self, path: str, json: dict, max_retries: int = 6, base_sleep: float = 1.5):
+        headers = {
+            "Authorization": f"Bearer {self.key}",
+            "Content-Type": "application/json",
+        }
+        for attempt in range(1, max_retries + 1):
+            try:
+                r = self.client.post(path, json=json, headers=headers)
+                r.raise_for_status()
+                return r.json()
+            except (httpx.ReadTimeout, httpx.ConnectTimeout, httpx.ConnectError,
+                    httpx.RemoteProtocolError, httpx.WriteError, httpx.PoolTimeout) as e:
+                sleep = min(60.0, (base_sleep ** attempt) + random.uniform(0, 0.5))
+                print(f"⚠️  HTTP ошибка {type(e).__name__} (попытка {attempt}/{max_retries}). Повтор через {sleep:.1f}s…")
+                time.sleep(sleep)
+            except httpx.HTTPStatusError as e:
+                code = e.response.status_code
+                if code in (429, 500, 502, 503, 504):
+                    sleep = min(60.0, (base_sleep ** attempt) + random.uniform(0, 0.5))
+                    print(f"⚠️  {code} от сервера (попытка {attempt}/{max_retries}). Повтор через {sleep:.1f}s…")
+                    time.sleep(sleep)
+                else:
+                    raise
+        raise RuntimeError("Превышено число повторов запроса")
 
     def extract(self, dialog_id: str, window) -> List[Dict[str,Any]]:
         if not self.key:
@@ -116,16 +175,11 @@ class LLM:
                 {"role": "user", "content": user},
             ],
         }
-        r = self.client.post(
+        data = self._post_with_retry(
             "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {self.key}",
-                "Content-Type": "application/json",
-            },
             json=payload,
         )
-        r.raise_for_status()
-        content = r.json()["choices"][0]["message"]["content"]
+        content = data["choices"][0]["message"]["content"]
         try:
             js = json.loads(content)
             arr = js.get("mentions", [])
@@ -179,11 +233,14 @@ def dedup_mentions(rows: List[Dict[str,Any]]) -> List[Dict[str,Any]]:
 def run(model="gpt-4o-mini", whole_max=8000, window_tokens=1800):
     df = read_dialogs(INPUT_XLSX)
     llm = LLM(model=model)
-    all_mentions: List[Dict[str,Any]] = []
     
     total_dialogs = len(df)
     print(f"🚀 Начинаем анализ {total_dialogs} диалогов...")
     print(f"📊 Модель: {model}, окно: {window_tokens} токенов")
+    
+    # Загружаем состояние для resume
+    state = load_state()
+    print(f"📋 Состояние: {len(state)} диалогов уже обработано")
     
     start_time = time.time()
     
@@ -196,9 +253,30 @@ def run(model="gpt-4o-mini", whole_max=8000, window_tokens=1800):
                 turns, whole_max_tokens=whole_max, window_tokens=window_tokens
             )
             
-            # Обрабатываем окна для текущего диалога
-            for w in windows:
-                all_mentions.extend(llm.extract(dlg_id, w))
+            # Проверяем, нужно ли обрабатывать этот диалог
+            dialog_state = state.get(str(dlg_id), {})
+            start_from = dialog_state.get("last_window", -1) + 1
+            
+            if start_from >= len(windows):
+                pbar.update(1)
+                continue
+                
+            # Обрабатываем окна для текущего диалога с обработкой ошибок
+            try:
+                for window_idx, w in enumerate(windows):
+                    if window_idx < start_from:
+                        continue
+                        
+                    new_mentions = llm.extract(dlg_id, w)
+                    append_mentions(new_mentions)
+                    
+                    # Обновляем состояние
+                    state[str(dlg_id)] = {"last_window": window_idx}
+                    save_state(state)
+                    
+            except Exception as e:
+                print(f"\n⚠️  Ошибка в диалоге {dlg_id}: {e}")
+                print("🔄 Пропускаем диалог и продолжаем...")
             
             # Обновляем прогресс
             pbar.update(1)
@@ -209,8 +287,11 @@ def run(model="gpt-4o-mini", whole_max=8000, window_tokens=1800):
                 rate = (idx + 1) / elapsed
                 eta = (total_dialogs - idx - 1) / rate if rate > 0 else 0
                 
+                # Подсчитываем общее количество упоминаний
+                total_mentions = sum(1 for _ in open(OUT_JSONL)) if OUT_JSONL.exists() else 0
+                
                 pbar.set_postfix({
-                    'найдено': len(all_mentions),
+                    'найдено': total_mentions,
                     'скорость': f'{rate:.1f} диал/мин',
                     'осталось': f'{eta/60:.1f} мин'
                 })
@@ -219,6 +300,15 @@ def run(model="gpt-4o-mini", whole_max=8000, window_tokens=1800):
     total_time = time.time() - start_time
     print(f"\n✅ Анализ завершен за {total_time/60:.1f} минут")
     print(f"📊 Скорость: {total_dialogs/(total_time/60):.1f} диалогов/минуту")
+    
+    # Загружаем все упоминания из JSONL
+    print("📥 Загружаем результаты из JSONL...")
+    all_mentions = []
+    if OUT_JSONL.exists():
+        with open(OUT_JSONL, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    all_mentions.append(json.loads(line))
     
     # До дедупа
     pre_count = len(all_mentions)
