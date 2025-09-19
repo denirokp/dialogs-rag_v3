@@ -2,6 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
+from typing import Any, Callable
 import json
 import pandas as pd
 
@@ -20,19 +21,46 @@ ART = Path("artifacts")
 RES_PATH = ART / "comprehensive_results.json"
 STATS_PATH = ART / "statistics.json"
 
+_CACHE: dict[tuple[Path, str | None], tuple[float, Any]] = {}
+
+
+def _get_cached(path: Path, loader: Callable[[], Any], key: str | None = None, default: Any = None) -> Any:
+    """Return cached value for *path* using *loader* if file changed."""
+    cache_key = (path, key)
+    if not path.exists():
+        _CACHE.pop(cache_key, None)
+        return default
+    mtime = path.stat().st_mtime
+    entry = _CACHE.get(cache_key)
+    if entry is None or entry[0] < mtime:
+        _CACHE[cache_key] = (mtime, loader())
+    return _CACHE[cache_key][1]
+
+
+def clear_cache() -> None:
+    _CACHE.clear()
+
+
 # ---------- helpers ----------
 def read_mentions():
-    if not RES_PATH.exists():
-        return []
-    js = json.loads(RES_PATH.read_text(encoding="utf-8"))
-    return js.get("mentions", [])
+    def loader():
+        js = json.loads(RES_PATH.read_text(encoding="utf-8"))
+        return js.get("mentions", [])
+
+    return _get_cached(RES_PATH, loader, default=[])
+
+
+def read_mentions_df() -> pd.DataFrame:
+    return _get_cached(RES_PATH, lambda: pd.DataFrame(read_mentions()), key="df", default=pd.DataFrame())
 
 # ---------- base endpoints ----------
 @app.get("/api/statistics")
 def statistics():
-    if not STATS_PATH.exists():
-        return {}
-    return json.loads(STATS_PATH.read_text(encoding="utf-8"))
+    return _get_cached(
+        STATS_PATH,
+        lambda: json.loads(STATS_PATH.read_text(encoding="utf-8")),
+        default={},
+    )
 
 @app.get("/api/mentions")
 def mentions(limit: int = 1000, offset: int = 0, label_type: str | None = None):
@@ -46,7 +74,7 @@ def mentions(limit: int = 1000, offset: int = 0, label_type: str | None = None):
 
 @app.get("/api/summary_themes")
 def summary_themes():
-    df = pd.DataFrame(read_mentions())
+    df = read_mentions_df()
     if df.empty:
         return {"by_label": []}
     grp = (
@@ -58,28 +86,28 @@ def summary_themes():
 
 @app.get("/api/problems")
 def problems():
-    df = pd.DataFrame(read_mentions())
+    df = read_mentions_df()
     if df.empty:
         return {"items": []}
     return {"items": df[df["label_type"] == "problems"].to_dict(orient="records")}
 
 @app.get("/api/ideas")
 def ideas():
-    df = pd.DataFrame(read_mentions())
+    df = read_mentions_df()
     if df.empty:
         return {"items": []}
     return {"items": df[df["label_type"] == "ideas"].to_dict(orient="records")}
 
 @app.get("/api/signals")
 def signals():
-    df = pd.DataFrame(read_mentions())
+    df = read_mentions_df()
     if df.empty:
         return {"items": []}
     return {"items": df[df["label_type"] == "signals"].to_dict(orient="records")}
 
 @app.post("/api/reload")
 def reload_data():
-    # Источник — файлы, поэтому reload по сути no-op, но оставим для совместимости
+    clear_cache()
     return {"status": "ok"}
 
 # ---------- consolidation endpoints ----------
@@ -87,19 +115,27 @@ def reload_data():
 def problems_consolidated():
     ps = ART / "problems_summary.csv"
     sub = ART / "problems_subthemes.csv"
-    if not ps.exists():
+    ps_df = _get_cached(ps, lambda: pd.read_csv(ps), key="df", default=pd.DataFrame())
+    if ps_df.empty:
         return {"summary": [], "subthemes": []}
-    ps_df = pd.read_csv(ps)
-    sub_df = pd.read_csv(sub) if sub.exists() else pd.DataFrame()
-    return {"summary": ps_df.to_dict(orient="records"),
-            "subthemes": sub_df.to_dict(orient="records")}
+    sub_df = _get_cached(sub, lambda: pd.read_csv(sub), key="df", default=pd.DataFrame())
+    return {
+        "summary": ps_df.to_dict(orient="records"),
+        "subthemes": sub_df.to_dict(orient="records"),
+    }
 
 @app.get("/api/problem_cards")
 def problem_cards():
     p = ART / "problem_cards.jsonl"
-    if not p.exists():
-        return {"cards": []}
-    cards = [json.loads(line) for line in p.read_text(encoding="utf-8").splitlines() if line.strip()]
+    cards = _get_cached(
+        p,
+        lambda: [
+            json.loads(line)
+            for line in p.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ],
+        default=[],
+    )
     return {"cards": cards}
 
 # uvicorn simple_api:app --port 8000
